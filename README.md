@@ -32,7 +32,7 @@ Intermediate outputs (derived):
 ## Pipeline Diagram (Snakemake DAG)
 
 ```mermaid
-flowchart LR
+flowchart TD
   %% Styles
   classDef raw fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#0D47A1;
   classDef preprocess fill:#E8F5E9,stroke:#2E7D32,stroke-width:1px,color:#1B5E20;
@@ -65,14 +65,14 @@ flowchart LR
   end
 
   %% Modeling
-  subgraph MOD[Modeling]
-    model_todo{{"TODO: modeling rules"}}:::model
-  end
+  %% subgraph MOD[Modeling]
+  %%  model_todo{{"TODO: modeling rules"}}:::model
+  %% end
 
   %% Figures
-  subgraph FIG[Figures]
-    fig_todo(["TODO: figure rules" ]):::figures
-  end
+  %% subgraph FIG[Figures]
+  %%  fig_todo(["TODO: figure rules" ]):::figures
+  %% end
 
   %% Dependencies
   raw_edf --> downsample
@@ -98,13 +98,13 @@ flowchart LR
   epoch_rule --> epochs_out
 
   %% Legend
-  subgraph LEG[Legend]
-    l_raw[("raw data")]:::raw
-    l_script("rule/script"):::preprocess
-    l_table["intermediate table"]:::features
-    l_model{{"model"}}:::model
-    l_fig(["figure"]):::figures
-  end
+  %% subgraph LEG[Legend]
+    %% l_raw[("raw data")]:::raw
+    %% l_script("rule/script"):::preprocess
+    %% l_table["intermediate table"]:::features
+    %% l_model{{"model"}}:::model
+    %% l_fig(["figure"]):::figures
+  %% end
 ```
 
 Diagram notes:
