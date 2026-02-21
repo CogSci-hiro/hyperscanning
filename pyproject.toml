@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hyper"
+
+version = "0.1.0"
+description = "EEG hyperscanning processing"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "h5py",
+  "mne==1.10.2",
+  "mypy>=1.5",
+  "numpy==1.26.4",
+  "pandas",
+  "praatio",
+  "pytest>=7.4",
+  "pyyaml",
+  "tqdm==4.67.1"
+]
+
+[project.optional-dependencies]
+dev = []
+
+[project.scripts]
+hyper = "hyper.cli.main:main"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]  # allow long lines; we still aim for readability
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+markers = [
+  "integration: marks tests that execute Snakemake canary/regression workflows",
+]

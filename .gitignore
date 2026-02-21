@@ -1,0 +1,6 @@
+.idea
+.ipynb_checkpoints
+notebooks/working
+.snakemake
+src/hyper.egg-info
+*__pycache__

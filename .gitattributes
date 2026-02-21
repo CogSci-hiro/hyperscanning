@@ -1,0 +1,6 @@
+# =============================================================================
+#                         GitHub Linguist settings
+# =============================================================================
+
+# Ignore Jupyter notebooks in language stats and code analysis
+*.ipynb linguist-vendored
