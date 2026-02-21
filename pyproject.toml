@@ -16,6 +16,7 @@ dependencies = [
   "numpy==1.26.4",
   "pandas",
   "praatio",
+  "praat-parselmouth>=0.4.7",
   "pytest>=7.4",
   "pyyaml",
   "tqdm==4.67.1"

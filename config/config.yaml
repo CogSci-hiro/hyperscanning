@@ -5,7 +5,7 @@ project:
 paths:
   # Set paths to local machine
   bids_root: "/Volumes/work-4T/hyperscanning-bids"
-  derived_root: "/Volumes/work-4T/hyperscanning-testing/derived"
+  derived_root: "/Volumes/work-4T/hyperscanning-21-02-2026/derived"
   annotation_root: "/Users/hiro/PycharmProjects/hyperscanning-working/data/annotations"
 
 debug:
