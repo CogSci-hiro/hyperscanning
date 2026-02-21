@@ -1,0 +1,28 @@
+name: hyper-pipeline
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+
+  # Scientific stack
+  - numpy
+  - scipy
+  - pandas
+  - mne
+
+  # File formats / I/O
+  - pyarrow
+  - h5py
+
+  # Config / CLI helpers
+  - pyyaml
+  - rich
+
+  # Pip for project + extras
+  - pip
+
+  - pip:
+      # Install the project itself into the env (editable)
+      - -e ..

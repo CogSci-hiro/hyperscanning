@@ -1,0 +1,72 @@
+# General configuration ################################################################################################
+project:
+  name: "hyperscanning"
+
+paths:
+  # Set paths to local machine
+  bids_root: "/Volumes/work-4T/hyperscanning-bids"
+  derived_root: "/Volumes/work-4T/hyperscanning-testing/derived"
+  annotation_root: "/Users/hiro/PycharmProjects/hyperscanning-working/data/annotations"
+
+debug:
+  enabled: false
+  subjects: ["sub-006"]
+
+subjects:
+  pattern: "sub-*"
+  exclude: [
+             "sub-001",  # only 32-electrodes
+             "sub-002",  # only 32-electrodes
+             "sub-003",  # bad electrode placement
+             # "sub-004",  # to match partners
+             # "sub-031",  # to match partners
+             "sub-032",   # bad signal
+  ]
+  missing_runs:
+    sub-004:
+      conversation: [ "1", "2" ]
+
+tasks:
+  include: ["conversation"]#, "resting"]
+
+runs:
+  include:
+    conversation: [1,2,3,4,5,6,7,8]
+    resting: [1,2]
+
+eeg:
+  montage: "biosemi64"
+  sfreq_hz: 2048
+  target_sfreq_hz: 512   # or set equal to sfreq_hz to effectively disable downsampling
+
+annotations:
+  "ipu": "ipu_v1"
+
+
+# Parameters for behavioural definitions ###############################################################################
+
+# Define 'adjacent' IPUs (seconds)
+min_latency: -1.0
+max_latency: 1.0
+min_response_duration: 0.01
+
+# Preprocessing ########################################################################################################
+
+# Interpolation
+interpolate:
+  method: "spline"
+
+# Filtering
+filter:
+  l_freq_hz: 0.5
+  h_freq_hz: 30
+
+# Epoching
+epochs:
+  tmin_s: -2.2  # plus left margin
+  tmax_s: 0.5   # plus right margin
+  baseline_start_s: -2.2
+  baseline_end_s: 0.5
+  baseline_s: [-2.2, 0.5]
+  detrend: 1
+  margin_s: [0.2, 0.5]  # left and right margin for cropping

@@ -1,0 +1,78 @@
+# =============================================================================
+#                               conv Snakemake entry
+# =============================================================================
+
+from snakemake.io import expand
+
+from pathlib import Path
+from typing import List
+
+CONFIG_PATH = "config/config.yaml"
+configfile: CONFIG_PATH
+
+# In Snakefile (global)
+wildcard_constraints:
+    subject="sub-\\d{3}",
+    task="[A-Za-z0-9_-]+",
+    run="\\d+"
+
+# Workflow directory
+WORKFLOW_DIR = Path(workflow.basedir)
+CONDA_PY_ENV = str(WORKFLOW_DIR / "envs" / "python.yaml")
+
+# This needs to come before because it contains discover_subjects()
+include: str(WORKFLOW_DIR / "rules" / "common.smk")
+
+# config is available in Snakefile/rules via `config`
+DEBUG_ENABLED = bool(config.get("debug", {}).get("enabled", False))
+DEBUG_SUBJECTS = list(config.get("debug", {}).get("subjects", []))
+
+SUBJECTS_ALL = SUBJECTS = discover_subjects(config)
+if DEBUG_ENABLED:
+    if len(DEBUG_SUBJECTS) == 0:
+        raise ValueError("debug.enabled is true but debug.subjects is empty.")
+    SUBJECTS = DEBUG_SUBJECTS
+else:
+    SUBJECTS = SUBJECTS_ALL  # whatever your real full list variable is
+
+# Define runs and tasks
+TASKS = list(config["tasks"]["include"])
+RUNS = config["runs"]["include"]["conversation"]
+RUNS_BY_TASK = {
+    task: [f"{int(r)}" for r in config["runs"]["include"][task]]
+    for task in TASKS
+}
+
+# Canary slice (single cheap datapoint for integration/regression checks)
+CANARY_CFG = config.get("canary", {})
+CANARY_SUBJECT = str(CANARY_CFG.get("subject", "sub-006"))
+CANARY_TASK = str(CANARY_CFG.get("task", "conversation"))
+CANARY_RUN = str(CANARY_CFG.get("run", "1"))
+
+# Set canonical roots (single source of truth)
+BIDS_ROOT = Path(config["paths"]["bids_root"])
+DERIVED_ROOT = Path(config["paths"]["derived_root"])
+ANNOT_ROOT = Path(config["paths"]["annotation_root"])
+
+include: str(WORKFLOW_DIR / "rules" / "preprocessing.smk")
+include: str(WORKFLOW_DIR / "rules" / "targets.smk")
+
+
+# Sanity check
+check_bids_inputs(BIDS_ROOT, SUBJECTS, TASKS, RUNS_BY_TASK)
+rule probe_hyper_env:
+    conda: CONDA_PY_ENV
+    output:
+        "logs/probe_hyper_env.txt"
+    shell:
+        r"""
+        mkdir -p logs
+        echo "PWD=$(pwd)" > {output}
+        echo "WHICH_PYTHON=$(which python)" >> {output}
+        echo "PYTHON=$(python -c 'import sys; print(sys.executable)')" >> {output}
+        echo "WHICH_HYPER=$(which hyper || echo MISSING)" >> {output}
+        echo "HYPER_HELP=$(hyper --help >/dev/null 2>&1 && echo OK || echo FAIL)" >> {output}
+        python -c "import hyper, pathlib; print('HYPER_IMPORT_OK', pathlib.Path(hyper.__file__).as_posix())" >> {output} 2>&1 || true
+        python -m pip show hyper >> {output} 2>&1 || true
+        python -m pip list | grep -i hyper >> {output} 2>&1 || true
+        """

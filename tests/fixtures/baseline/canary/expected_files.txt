@@ -1,0 +1,7 @@
+# Relative to tests/fixtures/baseline/canary/
+# Populate these files from a trusted canary run before enabling strict
+# regression checks in CI.
+
+beh/metadata/sub-006_task-conversation_run-1_metadata.tsv
+beh/metadata/sub-006_task-conversation_run-1_events.npy
+canary/all.done

@@ -1,0 +1,11 @@
+{
+  "beh/metadata/sub-006_task-conversation_run-1_events.npy": "b2e813107f6e29c4997e6d2782845016a75a022e2e2917be84a94812e685c34a",
+  "beh/metadata/sub-006_task-conversation_run-1_metadata.tsv": "e4a9d53bfe8c530b89ab97505174650ade17bd0f4a15131fb4886f97444a300b",
+  "canary/all.done": "e0cad84ad5fc932d8c3ab8c4367d16d13dcc1740d43ddae8457fcc91619bed32",
+  "eeg/downsampled/sub-006_task-conversation_run-1_raw_ds.fif": "42e48d05df2dc9333f3c6c313000e9f8ac4de38b86873a07897c883021758eb9",
+  "eeg/epochs/sub-006_task-conversation_run-1_epochs-epo.fif": "315a3101739886a5294705d35d3e9a8ac7b83776bc44e66d77a73298d179bec8",
+  "eeg/filtered/sub-006_task-conversation_run-1_raw_filt.fif": "0a6ec4d171ae2927049bbcfc61370576795cc5c693a531b8848be01ad599d731",
+  "eeg/ica_applied/sub-006_task-conversation_run-1_raw_ica.fif": "e9de812d17c6528a96b5058d2560a199254807411405af183cc992ecaebb6b18",
+  "eeg/interpolated/sub-006_task-conversation_run-1_raw_interp.fif": "649b5e931f9c3a081e7c84260877adff6818c8d984cdd1bad8eaa9bfbc39dfcf",
+  "eeg/reref/sub-006_task-conversation_run-1_raw_reref.fif": "774f444de9c90f07c7c07c7aa946df64cecf467dadc04991e48d4c6634db8016"
+}
