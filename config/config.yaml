@@ -58,7 +58,7 @@ interpolate:
 
 # Filtering
 filter:
-  l_freq_hz: 0.5
+  l_freq_hz: 0.1
   h_freq_hz: 30
 
 # Epoching
