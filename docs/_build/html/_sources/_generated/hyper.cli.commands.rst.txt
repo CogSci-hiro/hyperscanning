@@ -4,11 +4,27 @@ hyper.cli.commands
 .. automodule:: hyper.cli.commands
 
    
-.. rubric:: Modules
+   
+   .. rubric:: Modules
 
-.. autosummary::
-   :toctree:
-   :recursive:
+   .. autosummary::
+      :toctree:
+      :recursive:
 
-   palign_to_ipu
-   preprocessing
+   
+      palign_to_ipu
+      preprocessing
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   

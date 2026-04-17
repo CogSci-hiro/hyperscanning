@@ -1,0 +1,68 @@
+{
+  "FeatureName": "oganian_envelope",
+  "FeatureLabel": "Oganian-style speech envelope",
+  "FeatureType": "continuous",
+  "Description": "Continuous speech-derived feature aligned samplewise to the EEG time base.",
+  "Units": "arbitrary",
+  "Shape": [0],
+  "DType": "float64",
+  "SamplingFrequency": 0.0,
+  "SamplingFrequencyUnit": "Hz",
+  "AlignmentTarget": "EEG",
+  "AlignmentAxis": "time",
+  "NumSamples": 0,
+  "StartTime": 0.0,
+  "StartTimeUnit": "s",
+  "MissingValueEncoding": "NaN",
+  "ValueRange": {
+    "Min": null,
+    "Max": null
+  },
+  "Source": {
+    "Modality": "audio",
+    "InputFiles": [],
+    "InputSamplingFrequency": 0.0,
+    "InputTimeBase": "seconds"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "0.1.0",
+    "CodeURL": null,
+    "ExtractionLibrary": "voxatlas",
+    "ExtractionLibraryVersion": null,
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": null,
+    "AlgorithmReference": null,
+    "Parameters": {},
+    "Preprocessing": [],
+    "Postprocessing": [],
+    "Resampling": {
+      "Performed": true,
+      "OriginalSamplingFrequency": 0.0,
+      "TargetSamplingFrequency": 0.0,
+      "Method": null
+    },
+    "Alignment": {
+      "Target": "eeg_samples",
+      "Strategy": "exact_length_match",
+      "EEGSampleCount": 0
+    }
+  },
+  "QualityControl": {
+    "FiniteValueRatio": null,
+    "NumNaN": null,
+    "NumInf": null,
+    "SummaryStatistics": {
+      "Mean": null,
+      "Std": null,
+      "Median": null
+    }
+  },
+  "FeatureFile": {
+    "Path": null,
+    "Format": "NumPy .npy"
+  },
+  "Notes": null
+}

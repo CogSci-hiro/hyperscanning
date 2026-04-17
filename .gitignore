@@ -6,3 +6,4 @@ src/hyper.egg-info
 *__pycache__
 project_info.py
 project_snapshot.md
+data

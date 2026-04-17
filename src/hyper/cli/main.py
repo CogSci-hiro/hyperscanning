@@ -16,37 +16,40 @@
 # ==================================================================================================
 
 import argparse
+import importlib
+import os
 from pathlib import Path
-from typing import Dict, Sequence
+from collections.abc import Sequence
 
 from hyper.config import load_project_config
 from hyper.cli.types import CliCommand
 
-# Command handlers (thin; no scientific logic here either)
-from hyper.cli.commands.preprocessing import (  # noqa: F401
-    downsampling as cmd_downsample,
-    epoching as cmd_epoch,
-    filtering as cmd_filter,
-    ica as cmd_ica_apply,
-    interpolation as cmd_interpolate,
-    metadata as cmd_metadata,
-    reref as cmd_reref,
-)
+os.environ.setdefault("MNE_DONTWRITE_HOME", "true")
 
 
 # ==================================================================================================
 # Command registry
 # ==================================================================================================
 
-_COMMANDS: Dict[str, CliCommand] = {
-    "downsample": cmd_downsample,
-    "reref": cmd_reref,
-    "ica-apply": cmd_ica_apply,
-    "interpolate": cmd_interpolate,
-    "filter": cmd_filter,
-    "metadata": cmd_metadata,
-    "epoch": cmd_epoch
+_COMMANDS: dict[str, str | CliCommand] = {
+    "downsample": "hyper.cli.commands.preprocessing.downsampling",
+    "reref": "hyper.cli.commands.preprocessing.reref",
+    "ica-apply": "hyper.cli.commands.preprocessing.ica",
+    "interpolate": "hyper.cli.commands.preprocessing.interpolation",
+    "filter": "hyper.cli.commands.preprocessing.filtering",
+    "metadata": "hyper.cli.commands.preprocessing.metadata",
+    "epoch": "hyper.cli.commands.preprocessing.epoching",
+    "acoustic-envelope": "hyper.cli.commands.features.envelope",
+    "acoustic-pitch": "hyper.cli.commands.features.pitch",
+    "acoustic-formants": "hyper.cli.commands.features.formants",
 }
+
+
+def _resolve_command_module(command: str, module_or_path: str | CliCommand) -> CliCommand:
+    """Resolve a command registry entry into a command module."""
+    if isinstance(module_or_path, str):
+        return importlib.import_module(module_or_path)
+    return module_or_path
 
 
 # ==================================================================================================
@@ -78,7 +81,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command", required=True, metavar="<command>")
 
-    for name, module in _COMMANDS.items():
+    for name, module_or_path in _COMMANDS.items():
+        module = _resolve_command_module(name, module_or_path)
         if not hasattr(module, "add_subparser"):
             raise RuntimeError(f"CLI command module for '{name}' is missing add_subparser().")
         module.add_subparser(subparsers)
@@ -125,9 +129,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     cfg = load_project_config(Path(args.config))
 
     command_name = str(args.command)
-    module = _COMMANDS.get(command_name)
-    if module is None:
+    module_or_path = _COMMANDS.get(command_name)
+    if module_or_path is None:
         raise RuntimeError(f"Unknown command: {command_name}")
+    module = _resolve_command_module(command_name, module_or_path)
 
     if not hasattr(module, "run"):
         raise RuntimeError(f"CLI command module for '{command_name}' is missing run().")

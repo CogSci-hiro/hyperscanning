@@ -4,19 +4,35 @@
 .. automodule:: hyper
 
    
-.. rubric:: Modules
+   
+   .. rubric:: Modules
 
-.. autosummary::
-   :toctree:
-   :recursive:
+   .. autosummary::
+      :toctree:
+      :recursive:
 
-   annotations
-   cli
-   config
-   constants
-   errors
-   logging
-   paths
-   preprocessing
-   testing
-   viz
+   
+      annotations
+      cli
+      config
+      constants
+      errors
+      logging
+      paths
+      preprocessing
+      testing
+      viz
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   

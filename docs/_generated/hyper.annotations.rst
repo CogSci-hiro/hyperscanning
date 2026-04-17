@@ -4,10 +4,26 @@ hyper.annotations
 .. automodule:: hyper.annotations
 
    
-.. rubric:: Modules
+   
+   .. rubric:: Modules
 
-.. autosummary::
-   :toctree:
-   :recursive:
+   .. autosummary::
+      :toctree:
+      :recursive:
 
-   palign_core
+   
+      palign_core
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   

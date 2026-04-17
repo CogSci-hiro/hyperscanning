@@ -4,16 +4,32 @@ hyper.cli.commands.preprocessing
 .. automodule:: hyper.cli.commands.preprocessing
 
    
-.. rubric:: Modules
+   
+   .. rubric:: Modules
 
-.. autosummary::
-   :toctree:
-   :recursive:
+   .. autosummary::
+      :toctree:
+      :recursive:
 
-   downsampling
-   epoching
-   filtering
-   ica
-   interpolation
-   metadata
-   reref
+   
+      downsampling
+      epoching
+      filtering
+      ica
+      interpolation
+      metadata
+      reref
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   

@@ -49,7 +49,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = '_generated/hyper.errors';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="hyper.logging" href="hyper.logging.html" />
+    <link rel="next" title="hyper.errors.make_logger" href="hyper.errors.make_logger.html" />
     <link rel="prev" title="hyper.constants" href="hyper.constants.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -309,11 +309,28 @@
 <li class="toctree-l3"><a class="reference internal" href="hyper.cli.types.html">hyper.cli.types</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.config.html">hyper.config</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.config.html">hyper.config</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.config.load_project_config.html">hyper.config.load_project_config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.config.ProjectConfig.html">hyper.config.ProjectConfig</a></li>
+</ul>
+</details></li>
 <li class="toctree-l2"><a class="reference internal" href="hyper.constants.html">hyper.constants</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">hyper.errors</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.logging.html">hyper.logging</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.paths.html">hyper.paths</a></li>
+<li class="toctree-l2 current active has-children"><a class="current reference internal" href="#">hyper.errors</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.errors.make_logger.html">hyper.errors.make_logger</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.errors.run_step.html">hyper.errors.run_step</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.errors.ErrorPolicy.html">hyper.errors.ErrorPolicy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.errors.StepFailure.html">hyper.errors.StepFailure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.errors.StepResult.html">hyper.errors.StepResult</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.logging.html">hyper.logging</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.logging.configure_logging.html">hyper.logging.configure_logging</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.paths.html">hyper.paths</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.paths.ProjectPaths.html">hyper.paths.ProjectPaths</a></li>
+</ul>
+</details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="hyper.preprocessing.html">hyper.preprocessing</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.downsampling.html">hyper.preprocessing.downsampling</a></li>
 <li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.epoching.html">hyper.preprocessing.epoching</a></li>
@@ -335,27 +352,102 @@
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.config.html">hyper.config</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.html">hyper.preprocessing</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.downsampling.html">hyper.preprocessing.downsampling</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.epoching.html">hyper.preprocessing.epoching</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.filtering.html">hyper.preprocessing.filtering</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.ica.html">hyper.preprocessing.ica</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.interpolation.html">hyper.preprocessing.interpolation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.metadata.html">hyper.preprocessing.metadata</a></li>
-<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.reref.html">hyper.preprocessing.reref</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.config.html">hyper.config</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.config.load_project_config.html">hyper.config.load_project_config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.config.ProjectConfig.html">hyper.config.ProjectConfig</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.preprocessing.downsampling.html">hyper.preprocessing.downsampling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.preprocessing.reref.html">hyper.preprocessing.reref</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.preprocessing.ica.html">hyper.preprocessing.ica</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.preprocessing.interpolation.html">hyper.preprocessing.interpolation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.preprocessing.filtering.html">hyper.preprocessing.filtering</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.preprocessing.metadata.html">hyper.preprocessing.metadata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.preprocessing.epoching.html">hyper.preprocessing.epoching</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.annotations.palign_core.html">hyper.annotations.palign_core</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.cli.main.html">hyper.cli.main</a></li>
-<li class="toctree-l1"><a class="reference internal" href="hyper.testing.regression.html">hyper.testing.regression</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.html">hyper.preprocessing</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.preprocessing.downsampling.html">hyper.preprocessing.downsampling</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.downsampling.downsample_edf_to_fif.html">hyper.preprocessing.downsampling.downsample_edf_to_fif</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.downsampling.ChannelsInfo.html">hyper.preprocessing.downsampling.ChannelsInfo</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.preprocessing.epoching.html">hyper.preprocessing.epoching</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.epoching.make_epochs_fif_to_fif.html">hyper.preprocessing.epoching.make_epochs_fif_to_fif</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.preprocessing.filtering.html">hyper.preprocessing.filtering</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.filtering.bandpass_filter_fif_to_fif.html">hyper.preprocessing.filtering.bandpass_filter_fif_to_fif</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.preprocessing.ica.html">hyper.preprocessing.ica</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.ica.apply_ica_fif_to_fif.html">hyper.preprocessing.ica.apply_ica_fif_to_fif</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.preprocessing.interpolation.html">hyper.preprocessing.interpolation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.interpolation.interpolate_bads_fif_to_fif.html">hyper.preprocessing.interpolation.interpolate_bads_fif_to_fif</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.preprocessing.metadata.html">hyper.preprocessing.metadata</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.metadata.infer_partner_id_and_run_from_ipu_path.html">hyper.preprocessing.metadata.infer_partner_id_and_run_from_ipu_path</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.metadata.infer_partner_ipu_path.html">hyper.preprocessing.metadata.infer_partner_ipu_path</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.metadata.make_metadata.html">hyper.preprocessing.metadata.make_metadata</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.metadata.make_metadata_and_events_from_self_ipu.html">hyper.preprocessing.metadata.make_metadata_and_events_from_self_ipu</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.metadata.metadata_df_to_mne_events.html">hyper.preprocessing.metadata.metadata_df_to_mne_events</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="hyper.preprocessing.reref.html">hyper.preprocessing.reref</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.reref.load_channels_tsv.html">hyper.preprocessing.reref.load_channels_tsv</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.reref.rereference_fif_to_fif.html">hyper.preprocessing.reref.rereference_fif_to_fif</a></li>
+<li class="toctree-l3"><a class="reference internal" href="hyper.preprocessing.reref.rereference_raw.html">hyper.preprocessing.reref.rereference_raw</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.downsampling.html">hyper.preprocessing.downsampling</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.downsampling.downsample_edf_to_fif.html">hyper.preprocessing.downsampling.downsample_edf_to_fif</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.downsampling.ChannelsInfo.html">hyper.preprocessing.downsampling.ChannelsInfo</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.reref.html">hyper.preprocessing.reref</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.reref.load_channels_tsv.html">hyper.preprocessing.reref.load_channels_tsv</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.reref.rereference_fif_to_fif.html">hyper.preprocessing.reref.rereference_fif_to_fif</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.reref.rereference_raw.html">hyper.preprocessing.reref.rereference_raw</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.ica.html">hyper.preprocessing.ica</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.ica.apply_ica_fif_to_fif.html">hyper.preprocessing.ica.apply_ica_fif_to_fif</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.interpolation.html">hyper.preprocessing.interpolation</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.interpolation.interpolate_bads_fif_to_fif.html">hyper.preprocessing.interpolation.interpolate_bads_fif_to_fif</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.filtering.html">hyper.preprocessing.filtering</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.filtering.bandpass_filter_fif_to_fif.html">hyper.preprocessing.filtering.bandpass_filter_fif_to_fif</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.metadata.html">hyper.preprocessing.metadata</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.metadata.infer_partner_id_and_run_from_ipu_path.html">hyper.preprocessing.metadata.infer_partner_id_and_run_from_ipu_path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.metadata.infer_partner_ipu_path.html">hyper.preprocessing.metadata.infer_partner_ipu_path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.metadata.make_metadata.html">hyper.preprocessing.metadata.make_metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.metadata.make_metadata_and_events_from_self_ipu.html">hyper.preprocessing.metadata.make_metadata_and_events_from_self_ipu</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.metadata.metadata_df_to_mne_events.html">hyper.preprocessing.metadata.metadata_df_to_mne_events</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.preprocessing.epoching.html">hyper.preprocessing.epoching</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.preprocessing.epoching.make_epochs_fif_to_fif.html">hyper.preprocessing.epoching.make_epochs_fif_to_fif</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.annotations.palign_core.html">hyper.annotations.palign_core</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.annotations.palign_core.apply_min_ipu_and_render_full_tier.html">hyper.annotations.palign_core.apply_min_ipu_and_render_full_tier</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.annotations.palign_core.build_ipu_segments_from_tokens.html">hyper.annotations.palign_core.build_ipu_segments_from_tokens</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.annotations.palign_core.Interval.html">hyper.annotations.palign_core.Interval</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.cli.main.html">hyper.cli.main</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.cli.main.build_arg_parser.html">hyper.cli.main.build_arg_parser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.cli.main.main.html">hyper.cli.main.main</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="hyper.testing.regression.html">hyper.testing.regression</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="hyper.testing.regression.assert_paths_equal.html">hyper.testing.regression.assert_paths_equal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.testing.regression.compare_paths.html">hyper.testing.regression.compare_paths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.testing.regression.RegressionResult.html">hyper.testing.regression.RegressionResult</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hyper.testing.regression.RegressionTolerance.html">hyper.testing.regression.RegressionTolerance</a></li>
+</ul>
+</details></li>
 </ul>
 </div>
 </nav></div>
@@ -430,10 +522,10 @@ module and makes failures easier to log, inspect, and test.</p>
 <p class="rubric">Functions</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_logger</span></code>(*, log_path)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="hyper.errors.make_logger.html#hyper.errors.make_logger" title="hyper.errors.make_logger"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_logger</span></code></a>(*, log_path)</p></td>
 <td><p>Return a file-backed logger used by pipeline steps.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_step</span></code>(policy, step, context, func, *args, ...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="hyper.errors.run_step.html#hyper.errors.run_step" title="hyper.errors.run_step"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_step</span></code></a>(policy, step, context, func, *args, ...)</p></td>
 <td><p>Run a pipeline step with policy-controlled error handling.</p></td>
 </tr>
 </tbody>
@@ -442,13 +534,13 @@ module and makes failures easier to log, inspect, and test.</p>
 <p class="rubric">Classes</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ErrorPolicy</span></code>(debug, log_path)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="hyper.errors.ErrorPolicy.html#hyper.errors.ErrorPolicy" title="hyper.errors.ErrorPolicy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ErrorPolicy</span></code></a>(debug, log_path)</p></td>
 <td><p>Error handling policy.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">StepFailure</span></code>(step, context, exc_type, ...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="hyper.errors.StepFailure.html#hyper.errors.StepFailure" title="hyper.errors.StepFailure"><code class="xref py py-obj docutils literal notranslate"><span class="pre">StepFailure</span></code></a>(step, context, exc_type, ...)</p></td>
 <td><p>Structured failure record for non-debug runs.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">StepResult</span></code>(value, failure)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="hyper.errors.StepResult.html#hyper.errors.StepResult" title="hyper.errors.StepResult"><code class="xref py py-obj docutils literal notranslate"><span class="pre">StepResult</span></code></a>(value, failure)</p></td>
 <td><p>Result wrapper: either value or failure.</p></td>
 </tr>
 </tbody>
@@ -476,11 +568,11 @@ module and makes failures easier to log, inspect, and test.</p>
       </div>
     </a>
     <a class="right-next"
-       href="hyper.logging.html"
+       href="hyper.errors.make_logger.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">hyper.logging</p>
+        <p class="prev-next-title">hyper.errors.make_logger</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -538,7 +630,7 @@ module and makes failures easier to log, inspect, and test.</p>
         <div class="footer-item">
 
   <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
     <br/>
   </p>
 </div>

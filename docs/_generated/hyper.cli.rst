@@ -4,12 +4,28 @@ hyper.cli
 .. automodule:: hyper.cli
 
    
-.. rubric:: Modules
+   
+   .. rubric:: Modules
 
-.. autosummary::
-   :toctree:
-   :recursive:
+   .. autosummary::
+      :toctree:
+      :recursive:
 
-   commands
-   main
-   types
+   
+      commands
+      main
+      types
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   

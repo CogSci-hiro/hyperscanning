@@ -4,11 +4,27 @@ hyper.viz
 .. automodule:: hyper.viz
 
    
-.. rubric:: Modules
+   
+   .. rubric:: Modules
 
-.. autosummary::
-   :toctree:
-   :recursive:
+   .. autosummary::
+      :toctree:
+      :recursive:
 
-   misc
-   style
+   
+      misc
+      style
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   

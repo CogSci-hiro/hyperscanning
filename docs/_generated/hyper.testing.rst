@@ -4,10 +4,26 @@ hyper.testing
 .. automodule:: hyper.testing
 
    
-.. rubric:: Modules
+   
+   .. rubric:: Modules
 
-.. autosummary::
-   :toctree:
-   :recursive:
+   .. autosummary::
+      :toctree:
+      :recursive:
 
-   regression
+   
+      regression
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
