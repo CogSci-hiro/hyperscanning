@@ -18,6 +18,7 @@
 import argparse
 import importlib
 import os
+import sys
 from pathlib import Path
 from collections.abc import Sequence
 
@@ -42,6 +43,9 @@ _COMMANDS: dict[str, str | CliCommand] = {
     "acoustic-envelope": "hyper.cli.commands.features.envelope",
     "acoustic-pitch": "hyper.cli.commands.features.pitch",
     "acoustic-formants": "hyper.cli.commands.features.formants",
+    "alignment-events": "hyper.cli.commands.features.alignment_events",
+    "token-events": "hyper.cli.commands.features.tokens",
+    "trf": "hyper.cli.commands.trf",
 }
 
 
@@ -56,7 +60,7 @@ def _resolve_command_module(command: str, module_or_path: str | CliCommand) -> C
 # Argument parsing
 # ==================================================================================================
 
-def build_arg_parser() -> argparse.ArgumentParser:
+def build_arg_parser(selected_command: str | None = None) -> argparse.ArgumentParser:
     """
     Build the top-level CLI parser with subcommands.
 
@@ -81,11 +85,19 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command", required=True, metavar="<command>")
 
-    for name, module_or_path in _COMMANDS.items():
-        module = _resolve_command_module(name, module_or_path)
-        if not hasattr(module, "add_subparser"):
-            raise RuntimeError(f"CLI command module for '{name}' is missing add_subparser().")
-        module.add_subparser(subparsers)
+    if selected_command is None:
+        for name in _COMMANDS:
+            subparsers.add_parser(name)
+        return parser
+
+    module_or_path = _COMMANDS.get(selected_command)
+    if module_or_path is None:
+        raise RuntimeError(f"Unknown command: {selected_command}")
+
+    module = _resolve_command_module(selected_command, module_or_path)
+    if not hasattr(module, "add_subparser"):
+        raise RuntimeError(f"CLI command module for '{selected_command}' is missing add_subparser().")
+    module.add_subparser(subparsers)
 
     return parser
 
@@ -119,8 +131,16 @@ def main(argv: Sequence[str] | None = None) -> None:
             "--out", "derived/raw_ds.fif",
         ])
     """
-    parser = build_arg_parser()
-    args = parser.parse_args(argv)  # noqa
+    argv_list = list(sys.argv[1:] if argv is None else argv)
+
+    if not argv_list or argv_list[0] in {"-h", "--help"}:
+        parser = build_arg_parser()
+        parser.print_help()
+        return
+
+    command_name = str(argv_list[0])
+    parser = build_arg_parser(command_name)
+    args = parser.parse_args(argv_list)  # noqa
 
     # Every subcommand requires --config (enforced by handlers)
     if not hasattr(args, "config"):

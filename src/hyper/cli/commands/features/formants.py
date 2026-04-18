@@ -14,11 +14,18 @@ def add_subparser(subparsers: Any) -> None:
     """Register the `acoustic-formants` subcommand."""
     parser = subparsers.add_parser(
         "acoustic-formants",
-        help="Extract vowel-centered F1/F2 median event tables from TextGrid intervals.",
+        help="Extract vowel-centered F1/F2 median event tables from alignment intervals.",
     )
     parser.add_argument("--config", type=Path, required=True, help="Path to config YAML.")
     parser.add_argument("--audio", type=Path, required=True, help="Input speech WAV file.")
-    parser.add_argument("--textgrid", type=Path, required=True, help="TextGrid containing vowel source intervals.")
+    parser.add_argument(
+        "--alignment",
+        "--textgrid",
+        dest="alignment",
+        type=Path,
+        required=True,
+        help="Alignment file containing vowel source intervals (.TextGrid or palign .csv).",
+    )
     parser.add_argument("--tier", type=str, required=True, help="Tier name containing phoneme/vowel intervals.")
     parser.add_argument("--out-tsv", type=Path, required=True, help="Output TSV event table path.")
     parser.add_argument("--out-sidecar", type=Path, required=True, help="Output JSON sidecar path.")
@@ -43,7 +50,7 @@ def run(args: argparse.Namespace, cfg) -> None:
     defaults = FormantEventExtractionConfig()
     run_vowel_formant_pipeline(
         audio_path=args.audio,
-        textgrid_path=args.textgrid,
+        alignment_path=args.alignment,
         tier_name=str(args.tier),
         output_tsv_path=args.out_tsv,
         output_sidecar_path=args.out_sidecar,

@@ -20,6 +20,7 @@ dependencies = [
   "pytest>=7.4",
   "pyyaml",
   "snakemake",
+  "spyeeg",
   "tqdm==4.67.1",
   "voxatlas"
 ]

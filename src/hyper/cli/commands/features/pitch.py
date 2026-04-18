@@ -18,7 +18,18 @@ def add_subparser(subparsers: Any) -> None:
     )
     parser.add_argument("--config", type=Path, required=True, help="Path to config YAML.")
     parser.add_argument("--audio", type=Path, required=True, help="Input speech WAV file.")
-    parser.add_argument("--eeg-samples", type=int, required=True, help="Target EEG sample count.")
+    parser.add_argument(
+        "--eeg-samples",
+        type=int,
+        default=None,
+        help="Target EEG sample count. Optional when --raw is provided.",
+    )
+    parser.add_argument(
+        "--raw",
+        type=Path,
+        default=None,
+        help="Optional raw FIF file from which to infer the EEG sample count.",
+    )
     parser.add_argument("--out", type=Path, required=True, help="Output NumPy array path.")
     parser.add_argument("--out-sidecar", type=Path, required=True, help="Output JSON sidecar path.")
     parser.add_argument("--fmin", type=float, default=None, help="Minimum admissible F0 in Hertz.")
@@ -39,13 +50,20 @@ def run(args: argparse.Namespace, cfg) -> None:
     feature_cfg = features_cfg.get("pitch", {})
     continuous_cfg = features_cfg.get("continuous", {})
     defaults = PitchExtractionConfig()
-    eeg_sfreq_hz = continuous_cfg.get("sfreq_hz")
+    eeg_sfreq_hz = continuous_cfg.get("sfreq_hz", getattr(args, "eeg_sfreq", None))
     if eeg_sfreq_hz is None:
         raise ValueError("Continuous feature EEG sampling rate must be set in features.continuous.sfreq_hz.")
+    eeg_sample_count = args.eeg_samples
+    if eeg_sample_count is None:
+        if args.raw is None:
+            raise ValueError("Either --eeg-samples or --raw must be provided.")
+        import mne
+
+        eeg_sample_count = int(mne.io.read_raw_fif(args.raw, preload=False, verbose="ERROR").n_times)
     run_pitch_pipeline(
         audio_path=args.audio,
         eeg_sampling_rate_hz=float(eeg_sfreq_hz),
-        eeg_sample_count=int(args.eeg_samples),
+        eeg_sample_count=int(eeg_sample_count),
         output_values_path=args.out,
         output_sidecar_path=args.out_sidecar,
         config=PitchExtractionConfig(

@@ -20,6 +20,40 @@
     "eeg": {"type": "object", "additionalProperties": true},
     "annotations": {"type": "object", "additionalProperties": true},
     "features": {"type": "object", "additionalProperties": true},
+    "trf": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "predictors": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "target_sfreq": {"type": "number", "exclusiveMinimum": 0},
+        "lags": {
+          "type": "object",
+          "properties": {
+            "tmin_seconds": {"type": "number"},
+            "tmax_seconds": {"type": "number"}
+          },
+          "additionalProperties": true
+        },
+        "conversation": {
+          "type": "object",
+          "properties": {
+            "duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+            "start_source": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": true
+        },
+        "segmentation": {"type": "object", "additionalProperties": true},
+        "cv": {"type": "object", "additionalProperties": true},
+        "hyperparameters": {"type": "object", "additionalProperties": true},
+        "model": {"type": "object", "additionalProperties": true},
+        "scoring": {"type": "object", "additionalProperties": true},
+        "outputs": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": true
+    },
     "preprocessing": {
       "type": "object",
       "properties": {

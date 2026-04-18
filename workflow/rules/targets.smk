@@ -25,8 +25,8 @@ def _continuous_feature_targets(desc: str):
     targets = []
     for subject, task, run in VALID_SUBJECT_TASK_RUNS:
         stem = f"{subject}_task-{task}_run-{run}_desc-{desc}_feature"
-        targets.append(derived_path("features", "continuous", f"{stem}.npy"))
-        targets.append(derived_path("features", "continuous", f"{stem}.json"))
+        targets.append(derived_path("features", "continuous", desc, f"{stem}.npy"))
+        targets.append(derived_path("features", "continuous", desc, f"{stem}.json"))
     return targets
 
 
@@ -34,8 +34,23 @@ def _event_feature_targets(desc: str):
     targets = []
     for subject, task, run in VALID_SUBJECT_TASK_RUNS:
         stem = f"{subject}_task-{task}_run-{run}_desc-{desc}_features"
-        targets.append(derived_path("features", "events", f"{stem}.tsv"))
-        targets.append(derived_path("features", "events", f"{stem}.json"))
+        targets.append(derived_path("features", "events", desc, f"{stem}.tsv"))
+        targets.append(derived_path("features", "events", desc, f"{stem}.json"))
+    return targets
+
+
+def _trf_targets():
+    if not bool(config.get("paths", {}).get("results_root")):
+        return []
+    targets = []
+    for subject in SUBJECTS:
+        task = "conversation"
+        if task not in TASKS:
+            continue
+        targets.append(results_path("trf", subject, f"task-{task}", "fold_scores.json"))
+        targets.append(results_path("trf", subject, f"task-{task}", "selected_alpha_per_fold.json"))
+        targets.append(results_path("trf", subject, f"task-{task}", "coefficients.npz"))
+        targets.append(results_path("trf", subject, f"task-{task}", "design_info.json"))
     return targets
 
 rule preprocessed_all:
@@ -173,6 +188,12 @@ rule epoch_all:
           bids_root=BIDS_ROOT,
           cfg=config
         )
+
+
+if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("results_root")):
+    rule trf_all:
+        input:
+            _trf_targets()
 
 
 rule canary_preprocessing:

@@ -93,3 +93,18 @@ def test_load_project_config_prefers_inline_preprocessing_over_sibling_file(tmp_
 
     assert cfg.raw["preprocessing"]["output"]["save_intermediates"] is True
     assert cfg.raw["preprocessing"]["downsample"]["sfreq_hz"] == 512
+
+
+def test_load_project_config_merges_sibling_trf_yaml(tmp_path: Path) -> None:
+    """Sibling `trf.yaml` should populate the dedicated TRF block."""
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
+    (tmp_path / "trf.yaml").write_text(
+        "trf:\n  enabled: true\n  target_sfreq: 64\n  predictors:\n    - speech_envelope\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_project_config(cfg_path)
+
+    assert cfg.raw["trf"]["enabled"] is True
+    assert cfg.raw["trf"]["target_sfreq"] == 64

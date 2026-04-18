@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -15,6 +16,42 @@ from .common import dataclass_to_dict, get_voxatlas_version
 
 
 SECONDS_PER_MILLISECOND: float = 0.001
+FRENCH_XSAMPA_VOWEL_LABELS: frozenset[str] = frozenset(
+    {
+        "a",
+        "a~",
+        "A/",
+        "e",
+        "E",
+        "e~",
+        "E~",
+        "i",
+        "o",
+        "O",
+        "O/",
+        "O~",
+        "u",
+        "U",
+        "U~/",
+        "y",
+        "2",
+        "2~",
+        "9",
+        "9~",
+        "@",
+    }
+)
+FORMANT_EVENT_COLUMNS: tuple[str, ...] = (
+    "onset_seconds",
+    "duration_seconds",
+    "vowel_label",
+    "speaker",
+    "f1_median_hz",
+    "f2_median_hz",
+    "source_interval_id",
+    "extraction_status",
+    "notes",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +114,13 @@ def _is_vowel_label(
 ) -> bool:
     resources = load_phonology_resources(language=language, resource_root=resource_root)
     _, features = lookup_articulatory_features(label, resources)
-    return bool(features is not None and float(features.get("vowel", 0.0)) == 1.0)
+    if features is not None:
+        return bool(float(features.get("vowel", 0.0)) == 1.0)
+
+    # Some environments ship without populated VoxAtlas phonology tables.
+    # Fall back to the XSAMPA-style French labels used in this dataset so
+    # vowel-centered formant extraction can still proceed deterministically.
+    return label in FRENCH_XSAMPA_VOWEL_LABELS
 
 
 def load_vowel_intervals_from_textgrid(
@@ -112,6 +155,75 @@ def load_vowel_intervals_from_textgrid(
         )
 
     return intervals
+
+
+def load_vowel_intervals_from_palign_csv(
+    csv_path: str | Path,
+    tier_name: str,
+    speaker: str | None = None,
+    language: str | None = None,
+    resource_root: str | None = None,
+) -> list[VowelInterval]:
+    """Load vowel intervals from a SPPAS palign CSV export."""
+    intervals_df = pd.read_csv(
+        csv_path,
+        header=None,
+        names=["tier", "start", "end", "label"],
+        encoding="utf-8-sig",
+    )
+    intervals_df["tier"] = intervals_df["tier"].astype(str).str.strip().str.strip('"')
+    intervals_df["label"] = intervals_df["label"].astype(str).str.strip().str.strip('"')
+
+    tier_df = intervals_df.loc[intervals_df["tier"] == tier_name].copy()
+    if tier_df.empty:
+        raise ValueError(f"Alignment tier not found in CSV: {tier_name}")
+
+    intervals: list[VowelInterval] = []
+    for idx, row in tier_df.reset_index(drop=True).iterrows():
+        label = str(row["label"]).strip()
+        if not label:
+            continue
+        if not _is_vowel_label(label, language=language, resource_root=resource_root):
+            continue
+
+        intervals.append(
+            VowelInterval(
+                interval_id=str(idx),
+                onset_seconds=float(row["start"]),
+                offset_seconds=float(row["end"]),
+                vowel_label=label,
+                speaker=speaker,
+            )
+        )
+
+    return intervals
+
+
+def load_vowel_intervals(
+    alignment_path: str | Path,
+    tier_name: str,
+    speaker: str | None = None,
+    language: str | None = None,
+    resource_root: str | None = None,
+) -> list[VowelInterval]:
+    """Load vowel intervals from either a TextGrid or palign CSV file."""
+    suffix = Path(alignment_path).suffix.lower()
+    if suffix == ".csv":
+        return load_vowel_intervals_from_palign_csv(
+            alignment_path,
+            tier_name=tier_name,
+            speaker=speaker,
+            language=language,
+            resource_root=resource_root,
+        )
+
+    return load_vowel_intervals_from_textgrid(
+        str(alignment_path),
+        tier_name=tier_name,
+        speaker=speaker,
+        language=language,
+        resource_root=resource_root,
+    )
 
 
 def _intervals_to_phoneme_table(intervals: list[VowelInterval]) -> pd.DataFrame:
@@ -197,7 +309,7 @@ def extract_vowel_formant_events(
             }
         )
 
-    event_table = pd.DataFrame.from_records(records)
+    event_table = pd.DataFrame.from_records(records, columns=FORMANT_EVENT_COLUMNS)
     metadata = FormantEventMetadata(
         feature_name="vowel_formants",
         audio_sampling_rate_hz=int(audio_sampling_rate_hz),

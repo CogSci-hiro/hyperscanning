@@ -108,6 +108,7 @@ DERIVED_ROOT = Path(config["paths"]["derived_root"])
 ANNOT_ROOT = Path(config["paths"]["annotation_root"])
 
 include: str(WORKFLOW_DIR / "rules" / "preprocessing.smk")
+include: str(WORKFLOW_DIR / "rules" / "features.smk")
 include: str(WORKFLOW_DIR / "rules" / "targets.smk")
 
 

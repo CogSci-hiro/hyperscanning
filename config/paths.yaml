@@ -1,5 +1,7 @@
 paths:
   bids_root: "/Users/hiro/Datasets/hyperscanning-bids"
   derived_root: "/Users/hiro/Datasets/working/hyperscanning-derived"
+  results_root: "/Users/hiro/Datasets/working/hyperscanning-results"
+  reports_root: "/Users/hiro/Datasets/working/hyperscanning-reports"
   precomputed_ica_root: "/Users/hiro/Datasets/working/hyperscanning/precomputed_ica"
   annotation_root: "/Users/hiro/Projects/active/hyperscanning-working/data/annotations"
