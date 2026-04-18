@@ -29,7 +29,10 @@ def add_subparser(subparsers: Any) -> None:
     parser.add_argument("--tier", type=str, required=True, help="Tier name containing phoneme/vowel intervals.")
     parser.add_argument("--out-tsv", type=Path, required=True, help="Output TSV event table path.")
     parser.add_argument("--out-sidecar", type=Path, required=True, help="Output JSON sidecar path.")
+    parser.add_argument("--feature-name", type=str, default=None, help="Optional feature name stored in metadata.")
     parser.add_argument("--speaker", type=str, default=None, help="Optional speaker label to store in the output table.")
+    parser.add_argument("--source-subject", type=str, default=None, help="Optional source subject stored in metadata.")
+    parser.add_argument("--source-role", type=str, default=None, help="Optional source role stored in metadata.")
     parser.add_argument("--language", type=str, default=None, help="Optional VoxAtlas phonology language code.")
     parser.add_argument("--resource-root", type=str, default=None, help="Optional VoxAtlas phonology resource root.")
     parser.add_argument("--frame-length", type=float, default=None, help="Formant frame length in seconds.")
@@ -55,6 +58,9 @@ def run(args: argparse.Namespace, cfg) -> None:
         output_tsv_path=args.out_tsv,
         output_sidecar_path=args.out_sidecar,
         speaker=args.speaker,
+        feature_name=args.feature_name,
+        source_subject=args.source_subject,
+        source_role=args.source_role,
         config=FormantEventExtractionConfig(
             language=args.language if args.language is not None else feature_cfg.get("language", defaults.language),
             resource_root=(

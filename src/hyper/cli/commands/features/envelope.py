@@ -32,6 +32,9 @@ def add_subparser(subparsers: Any) -> None:
     )
     parser.add_argument("--out", type=Path, required=True, help="Output NumPy array path.")
     parser.add_argument("--out-sidecar", type=Path, required=True, help="Output JSON sidecar path.")
+    parser.add_argument("--feature-name", type=str, default=None, help="Optional feature name stored in metadata.")
+    parser.add_argument("--source-subject", type=str, default=None, help="Optional source subject stored in metadata.")
+    parser.add_argument("--source-role", type=str, default=None, help="Optional source role stored in metadata.")
     parser.add_argument("--frame-length", type=float, default=None, help="Envelope frame length in seconds.")
     parser.add_argument("--frame-step", type=float, default=None, help="Envelope frame step in seconds.")
     parser.add_argument("--smoothing", type=int, default=None, help="Envelope smoothing window in frames.")
@@ -60,6 +63,9 @@ def run(args: argparse.Namespace, cfg) -> None:
         eeg_sample_count=int(eeg_sample_count),
         output_values_path=args.out,
         output_sidecar_path=args.out_sidecar,
+        feature_name=args.feature_name,
+        source_subject=args.source_subject,
+        source_role=args.source_role,
         config=EnvelopeExtractionConfig(
             frame_length_seconds=float(
                 args.frame_length if args.frame_length is not None else feature_cfg.get(

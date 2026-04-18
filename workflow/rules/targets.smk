@@ -19,23 +19,32 @@ def _existing_subject_task_runs():
 
 
 VALID_SUBJECT_TASK_RUNS = _existing_subject_task_runs()
+FEATURE_ROLES = ("self", "other")
+
+
+def _role_descriptor(desc: str, role: str):
+    return f"{role}_{desc}"
 
 
 def _continuous_feature_targets(desc: str):
     targets = []
     for subject, task, run in VALID_SUBJECT_TASK_RUNS:
-        stem = f"{subject}_task-{task}_run-{run}_desc-{desc}_feature"
-        targets.append(out_path("features", "continuous", desc, f"{stem}.npy"))
-        targets.append(out_path("features", "continuous", desc, f"{stem}.json"))
+        for role in FEATURE_ROLES:
+            role_desc = _role_descriptor(desc, role)
+            stem = f"{subject}_task-{task}_run-{run}_desc-{role_desc}_feature"
+            targets.append(out_path("features", "continuous", desc, f"{stem}.npy"))
+            targets.append(out_path("features", "continuous", desc, f"{stem}.json"))
     return targets
 
 
 def _event_feature_targets(desc: str):
     targets = []
     for subject, task, run in VALID_SUBJECT_TASK_RUNS:
-        stem = f"{subject}_task-{task}_run-{run}_desc-{desc}_features"
-        targets.append(out_path("features", "events", desc, f"{stem}.tsv"))
-        targets.append(out_path("features", "events", desc, f"{stem}.json"))
+        for role in FEATURE_ROLES:
+            role_desc = _role_descriptor(desc, role)
+            stem = f"{subject}_task-{task}_run-{run}_desc-{role_desc}_features"
+            targets.append(out_path("features", "events", desc, f"{stem}.tsv"))
+            targets.append(out_path("features", "events", desc, f"{stem}.json"))
     return targets
 
 

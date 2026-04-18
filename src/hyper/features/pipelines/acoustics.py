@@ -56,13 +56,24 @@ def _write_continuous_derivative(
     result: EnvelopeFeatureResult | F0FeatureResult,
     output_values_path: Path,
     output_sidecar_path: Path,
+    *,
+    feature_name: str | None = None,
+    source_subject: str | None = None,
+    source_role: str | None = None,
 ) -> None:
     output_values_path.parent.mkdir(parents=True, exist_ok=True)
     np.save(output_values_path, result.eeg_values)
+    metadata = dataclass_to_dict(result.metadata)
+    if feature_name is not None:
+        metadata["feature_name"] = feature_name
+    if source_subject is not None:
+        metadata["source_subject"] = source_subject
+    if source_role is not None:
+        metadata["source_role"] = source_role
     _write_json(
         output_sidecar_path,
         {
-            "metadata": dataclass_to_dict(result.metadata),
+            "metadata": metadata,
             "raw_frame_count": int(result.raw_values.size),
             "raw_time_seconds_shape": list(result.raw_time_seconds.shape),
             "aligned_time_seconds_shape": list(result.eeg_time_seconds.shape),
@@ -70,10 +81,25 @@ def _write_continuous_derivative(
     )
 
 
-def _write_event_derivative(result: FormantEventResult, output_tsv_path: Path, output_sidecar_path: Path) -> None:
+def _write_event_derivative(
+    result: FormantEventResult,
+    output_tsv_path: Path,
+    output_sidecar_path: Path,
+    *,
+    feature_name: str | None = None,
+    source_subject: str | None = None,
+    source_role: str | None = None,
+) -> None:
     output_tsv_path.parent.mkdir(parents=True, exist_ok=True)
     result.event_table.to_csv(output_tsv_path, sep="\t", index=False)
-    _write_json(output_sidecar_path, {"metadata": dataclass_to_dict(result.metadata)})
+    metadata = dataclass_to_dict(result.metadata)
+    if feature_name is not None:
+        metadata["feature_name"] = feature_name
+    if source_subject is not None:
+        metadata["source_subject"] = source_subject
+    if source_role is not None:
+        metadata["source_role"] = source_role
+    _write_json(output_sidecar_path, {"metadata": metadata})
 
 
 def run_alignment_event_pipeline(
@@ -84,6 +110,8 @@ def run_alignment_event_pipeline(
     *,
     feature_name: str,
     exclude_labels: tuple[str, ...] = (),
+    source_subject: str | None = None,
+    source_role: str | None = None,
 ) -> pd.DataFrame:
     """Export interval onsets from a simple alignment CSV as an event table."""
     intervals_df = pd.read_csv(
@@ -120,6 +148,8 @@ def run_alignment_event_pipeline(
                 "source_alignment_path": str(alignment_path),
                 "source_tier": tier_name,
                 "excluded_labels": list(exclude_labels),
+                "source_subject": source_subject,
+                "source_role": source_role,
                 "shape": list(event_table.shape),
             }
         },
@@ -144,6 +174,8 @@ def run_token_event_pipeline(
     *,
     feature_name: str = "tokens",
     exclude_labels: tuple[str, ...] = (),
+    source_subject: str | None = None,
+    source_role: str | None = None,
 ) -> pd.DataFrame:
     """Export subject-specific token onsets from a dyad-level token table."""
     _, speaker = infer_dyad_index_and_speaker(subject)
@@ -178,6 +210,8 @@ def run_token_event_pipeline(
                 "run": str(run),
                 "speaker": speaker,
                 "excluded_labels": list(exclude_labels),
+                "source_subject": source_subject if source_subject is not None else subject,
+                "source_role": source_role,
                 "shape": list(event_table.shape),
             }
         },
@@ -192,6 +226,10 @@ def run_envelope_pipeline(
     output_values_path: Path,
     output_sidecar_path: Path,
     config: EnvelopeExtractionConfig | None = None,
+    *,
+    feature_name: str | None = None,
+    source_subject: str | None = None,
+    source_role: str | None = None,
 ) -> EnvelopeFeatureResult:
     """Extract the EEG-aligned acoustic envelope derivative and write it."""
     waveform, sampling_rate_hz = load_audio_waveform(audio_path)
@@ -202,7 +240,14 @@ def run_envelope_pipeline(
         eeg_sample_count=eeg_sample_count,
         config=config,
     )
-    _write_continuous_derivative(result, output_values_path, output_sidecar_path)
+    _write_continuous_derivative(
+        result,
+        output_values_path,
+        output_sidecar_path,
+        feature_name=feature_name,
+        source_subject=source_subject,
+        source_role=source_role,
+    )
     return result
 
 
@@ -213,6 +258,10 @@ def run_pitch_pipeline(
     output_values_path: Path,
     output_sidecar_path: Path,
     config: PitchExtractionConfig | None = None,
+    *,
+    feature_name: str | None = None,
+    source_subject: str | None = None,
+    source_role: str | None = None,
 ) -> F0FeatureResult:
     """Extract the EEG-aligned F0 derivative and write it."""
     waveform, sampling_rate_hz = load_audio_waveform(audio_path)
@@ -223,7 +272,14 @@ def run_pitch_pipeline(
         eeg_sample_count=eeg_sample_count,
         config=config,
     )
-    _write_continuous_derivative(result, output_values_path, output_sidecar_path)
+    _write_continuous_derivative(
+        result,
+        output_values_path,
+        output_sidecar_path,
+        feature_name=feature_name,
+        source_subject=source_subject,
+        source_role=source_role,
+    )
     return result
 
 
@@ -235,6 +291,9 @@ def run_vowel_formant_pipeline(
     output_sidecar_path: Path,
     config: FormantEventExtractionConfig | None = None,
     speaker: str | None = None,
+    feature_name: str | None = None,
+    source_subject: str | None = None,
+    source_role: str | None = None,
 ) -> FormantEventResult:
     """Extract vowel-centered F1/F2 event features from alignment intervals."""
     resolved_config = config or FormantEventExtractionConfig()
@@ -252,5 +311,12 @@ def run_vowel_formant_pipeline(
         vowel_intervals=vowel_intervals,
         config=resolved_config,
     )
-    _write_event_derivative(result, output_tsv_path, output_sidecar_path)
+    _write_event_derivative(
+        result,
+        output_tsv_path,
+        output_sidecar_path,
+        feature_name=feature_name,
+        source_subject=source_subject,
+        source_role=source_role,
+    )
     return result

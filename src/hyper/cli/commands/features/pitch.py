@@ -32,6 +32,9 @@ def add_subparser(subparsers: Any) -> None:
     )
     parser.add_argument("--out", type=Path, required=True, help="Output NumPy array path.")
     parser.add_argument("--out-sidecar", type=Path, required=True, help="Output JSON sidecar path.")
+    parser.add_argument("--feature-name", type=str, default=None, help="Optional feature name stored in metadata.")
+    parser.add_argument("--source-subject", type=str, default=None, help="Optional source subject stored in metadata.")
+    parser.add_argument("--source-role", type=str, default=None, help="Optional source role stored in metadata.")
     parser.add_argument("--fmin", type=float, default=None, help="Minimum admissible F0 in Hertz.")
     parser.add_argument("--fmax", type=float, default=None, help="Maximum admissible F0 in Hertz.")
     parser.add_argument("--frame-length", type=float, default=None, help="Pitch frame length in seconds.")
@@ -66,6 +69,9 @@ def run(args: argparse.Namespace, cfg) -> None:
         eeg_sample_count=int(eeg_sample_count),
         output_values_path=args.out,
         output_sidecar_path=args.out_sidecar,
+        feature_name=args.feature_name,
+        source_subject=args.source_subject,
+        source_role=args.source_role,
         config=PitchExtractionConfig(
             fmin_hz=float(args.fmin if args.fmin is not None else feature_cfg.get("fmin_hz", defaults.fmin_hz)),
             fmax_hz=float(args.fmax if args.fmax is not None else feature_cfg.get("fmax_hz", defaults.fmax_hz)),
