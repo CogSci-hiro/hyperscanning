@@ -5,6 +5,8 @@
 from snakemake.io import expand
 
 from pathlib import Path
+import shlex
+import sys
 from typing import List
 import yaml
 
@@ -56,8 +58,12 @@ wildcard_constraints:
 
 # Workflow directory
 WORKFLOW_DIR = Path(workflow.basedir)
+PROJECT_ROOT = WORKFLOW_DIR.parent
 CONDA_PY_ENV = str(WORKFLOW_DIR / "envs" / "python.yaml")
-HYPER_MODULE_CMD = "PYTHONPATH=src python -m hyper.cli.main"
+HYPER_PYTHON = PROJECT_ROOT / ".venv" / "bin" / "python"
+if not HYPER_PYTHON.exists():
+    HYPER_PYTHON = Path(sys.executable)
+HYPER_MODULE_CMD = f"PYTHONPATH=src {shlex.quote(str(HYPER_PYTHON))} -m hyper.cli.main"
 PREPROCESSING_PIPELINE_ORDER = list((config.get("preprocessing") or {}).get("pipeline_order", []))
 EXPECTED_PREPROCESSING_PIPELINE_ORDER = [
     "separate_drop_channels",

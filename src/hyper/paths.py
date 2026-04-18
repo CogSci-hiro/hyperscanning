@@ -70,10 +70,14 @@ class ProjectPaths:
         if not isinstance(paths_cfg, Mapping):
             raise ValueError("Config missing required mapping: paths")
 
+        raw_root_value = paths_cfg.get("raw_root", paths_cfg.get("bids_root"))
+        if raw_root_value is None:
+            raise ValueError("Config paths must define either 'raw_root' or 'bids_root'")
+
         # Cast values via str() first so YAML scalar types are handled
         # consistently even if users quote/unquote fields differently.
         return ProjectPaths(
-            raw_root=Path(str(paths_cfg["raw_root"])),
+            raw_root=Path(str(raw_root_value)),
             derived_root=Path(str(paths_cfg["derived_root"])),
             results_root=Path(str(paths_cfg["results_root"])),
             reports_root=Path(str(paths_cfg["reports_root"])),
