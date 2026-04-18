@@ -14,6 +14,31 @@ def _partner_subject(subject):
 def _descriptor_dirname(descriptor):
     return descriptor.removeprefix("self_").removeprefix("other_")
 
+
+def _trf_predictor_spec(predictor_name, subject, task, run):
+    acoustic_specs = {
+        "speech_envelope": ("continuous", out_path, subject, "self_envelope"),
+        "envelope": ("continuous", out_path, subject, "self_envelope"),
+        "self_speech_envelope": ("continuous", out_path, subject, "self_envelope"),
+        "other_speech_envelope": ("continuous", out_path, subject, "other_envelope"),
+        "self_envelope": ("continuous", out_path, subject, "self_envelope"),
+        "other_envelope": ("continuous", out_path, subject, "other_envelope"),
+        "f0": ("continuous", out_path, subject, "self_f0"),
+        "self_f0": ("continuous", out_path, subject, "self_f0"),
+        "other_f0": ("continuous", out_path, subject, "other_f0"),
+    }
+    lm_specs = {
+        "self_surprisal": ("event", lm_feature_path, subject, "lmSurprisal"),
+        "other_surprisal": ("event", lm_feature_path, _partner_subject(subject), "lmSurprisal"),
+        "self_entropy": ("event", lm_feature_path, subject, "lmShannonEntropy"),
+        "other_entropy": ("event", lm_feature_path, _partner_subject(subject), "lmShannonEntropy"),
+    }
+    if predictor_name in acoustic_specs:
+        return acoustic_specs[predictor_name]
+    if predictor_name in lm_specs:
+        return lm_specs[predictor_name]
+    raise WorkflowError(f"Unsupported TRF predictor {predictor_name!r}")
+
 rule speech_envelope:
     input:
         self_audio=bids_path("{subject}", "audio", "{subject}_task-{task}_run-{run}.wav"),
@@ -290,19 +315,7 @@ rule token_onsets:
 
 
 def _trf_subject_inputs(wildcards):
-    predictor_map = {
-        "speech_envelope": "self_envelope",
-        "envelope": "self_envelope",
-        "self_speech_envelope": "self_envelope",
-        "other_speech_envelope": "other_envelope",
-        "self_envelope": "self_envelope",
-        "other_envelope": "other_envelope",
-        "f0": "self_f0",
-        "self_f0": "self_f0",
-        "other_f0": "other_f0",
-    }
     predictor_names = list(config.get("trf", {}).get("predictors", []))
-    descriptors = [predictor_map[name] for name in predictor_names]
     run_inputs = ["config/config.yaml"]
     for run in RUNS_BY_TASK.get(str(wildcards.task), RUNS):
         if _is_explicitly_missing(cfg=config, subject=wildcards.subject, task=wildcards.task, run=str(run)):
@@ -313,15 +326,33 @@ def _trf_subject_inputs(wildcards):
         if not (edf.exists() and channels.exists()):
             continue
         run_inputs.append(out_path("eeg", "filtered", f"{wildcards.subject}_task-{wildcards.task}_run-{run}_raw_filt.fif"))
-        for descriptor in descriptors:
-            run_inputs.append(
-                out_path(
-                    "features",
-                    "continuous",
-                    _descriptor_dirname(descriptor),
-                    f"{wildcards.subject}_task-{wildcards.task}_run-{run}_desc-{descriptor}_feature.npy",
-                )
+        for predictor_name in predictor_names:
+            storage_kind, root_fn, storage_subject, descriptor = _trf_predictor_spec(
+                predictor_name,
+                wildcards.subject,
+                wildcards.task,
+                str(run),
             )
+            if storage_kind == "continuous":
+                run_inputs.append(
+                    root_fn(
+                        "features",
+                        "continuous",
+                        _descriptor_dirname(descriptor),
+                        f"{storage_subject}_task-{wildcards.task}_run-{run}_desc-{descriptor}_feature.npy",
+                    )
+                )
+            elif storage_kind == "event":
+                run_inputs.append(
+                    root_fn(
+                        "features",
+                        "events",
+                        _descriptor_dirname(descriptor),
+                        f"{storage_subject}_task-{wildcards.task}_run-{run}_desc-{descriptor}_features.tsv",
+                    )
+                )
+            else:
+                raise WorkflowError(f"Unsupported TRF predictor storage kind {storage_kind!r}")
     return run_inputs
 
 

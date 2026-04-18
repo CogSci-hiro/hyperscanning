@@ -221,6 +221,12 @@ def derived_path(*parts: str) -> str:
     return out_path(*parts)
 
 
+def lm_feature_path(*parts: str) -> str:
+    """Construct a path under the converted LM feature root."""
+    root = config["paths"].get("lm_feature_root", config["paths"].get("out_dir", config["paths"].get("derived_root")))
+    return str(Path(root) / Path(*parts))
+
+
 def precomputed_ica_path(filename: str) -> str:
     """Construct a path under the user-configurable precomputed ICA root."""
     normalized = (

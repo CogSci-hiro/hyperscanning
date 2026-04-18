@@ -43,6 +43,12 @@ class ProjectPaths:
     out_dir: Path
     results_root: Path
     reports_root: Path
+    lm_feature_root: Path
+
+    @property
+    def derived_root(self) -> Path:
+        """Backward-compatible alias for the main derived-data root."""
+        return self.out_dir
 
     @staticmethod
     def from_config(cfg: ProjectConfig) -> "ProjectPaths":
@@ -81,10 +87,12 @@ class ProjectPaths:
             raise ValueError("Config paths must define 'out_dir'")
 
         results_root_value = paths_cfg.get("results_root", out_dir_value)
+        lm_feature_root_value = paths_cfg.get("lm_feature_root", out_dir_value)
 
         return ProjectPaths(
             raw_root=Path(str(raw_root_value)),
             out_dir=Path(str(out_dir_value)),
             results_root=Path(str(results_root_value)),
             reports_root=Path(str(paths_cfg["reports_root"])),
+            lm_feature_root=Path(str(lm_feature_root_value)),
         )

@@ -36,13 +36,14 @@ def test_load_project_config_merges_sibling_paths_yaml(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
     (tmp_path / "paths.yaml").write_text(
-        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  precomputed_ica_root: /ica\n  annotation_root: /ann\n",
+        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  lm_feature_root: /lm\n  precomputed_ica_root: /ica\n  annotation_root: /ann\n",
         encoding="utf-8",
     )
 
     cfg = load_project_config(cfg_path)
 
     assert cfg.raw["paths"]["bids_root"] == "/bids"
+    assert cfg.raw["paths"]["lm_feature_root"] == "/lm"
     assert cfg.raw["paths"]["precomputed_ica_root"] == "/ica"
 
 
@@ -54,7 +55,7 @@ def test_load_project_config_prefers_inline_paths_over_sibling_paths_yaml(tmp_pa
         encoding="utf-8",
     )
     (tmp_path / "paths.yaml").write_text(
-        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  precomputed_ica_root: /ica\n  annotation_root: /ann\n",
+        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  lm_feature_root: /lm\n  precomputed_ica_root: /ica\n  annotation_root: /ann\n",
         encoding="utf-8",
     )
 

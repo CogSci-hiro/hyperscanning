@@ -15,6 +15,7 @@ os.environ.setdefault("NUMBA_DISABLE_JIT", "1")
 
 import mne
 import numpy as np
+import pandas as pd
 from scipy import signal
 from sklearn.model_selection import GroupKFold
 
@@ -28,16 +29,33 @@ TRF_RESULTS_DIRNAME: str = "trf"
 TIMING_JSON_SUFFIX: str = "_raw_ds_timing.json"
 FILTERED_RAW_SUFFIX: str = "_raw_filt.fif"
 DEFAULT_JSON_INDENT: int = 2
-PREDICTOR_NAME_MAP: dict[str, str] = {
-    "speech_envelope": "self_envelope",
-    "envelope": "self_envelope",
-    "self_speech_envelope": "self_envelope",
-    "other_speech_envelope": "other_envelope",
-    "self_envelope": "self_envelope",
-    "other_envelope": "other_envelope",
-    "f0": "self_f0",
-    "self_f0": "self_f0",
-    "other_f0": "other_f0",
+
+
+@dataclass(frozen=True, slots=True)
+class PredictorSpec:
+    """Storage and loading rules for one TRF predictor family."""
+
+    storage_kind: str
+    descriptor: str
+    dirname: str
+    role: str
+    column_name: str | None = None
+
+
+PREDICTOR_SPECS: dict[str, PredictorSpec] = {
+    "speech_envelope": PredictorSpec("continuous", "self_envelope", "envelope", "self"),
+    "envelope": PredictorSpec("continuous", "self_envelope", "envelope", "self"),
+    "self_speech_envelope": PredictorSpec("continuous", "self_envelope", "envelope", "self"),
+    "other_speech_envelope": PredictorSpec("continuous", "other_envelope", "envelope", "other"),
+    "self_envelope": PredictorSpec("continuous", "self_envelope", "envelope", "self"),
+    "other_envelope": PredictorSpec("continuous", "other_envelope", "envelope", "other"),
+    "f0": PredictorSpec("continuous", "self_f0", "f0", "self"),
+    "self_f0": PredictorSpec("continuous", "self_f0", "f0", "self"),
+    "other_f0": PredictorSpec("continuous", "other_f0", "f0", "other"),
+    "self_surprisal": PredictorSpec("event", "lmSurprisal", "lm_surprisal", "self", column_name="surprisal"),
+    "other_surprisal": PredictorSpec("event", "lmSurprisal", "lm_surprisal", "other", column_name="surprisal"),
+    "self_entropy": PredictorSpec("event", "lmShannonEntropy", "lm_shannon_entropy", "self", column_name="entropy"),
+    "other_entropy": PredictorSpec("event", "lmShannonEntropy", "lm_shannon_entropy", "other", column_name="entropy"),
 }
 
 
@@ -114,10 +132,10 @@ class TrfSubjectResult:
     out_dir: Path
 
 
-def _predictor_descriptor(predictor_name: str) -> str:
-    """Map a config predictor name onto the stored derivative descriptor."""
+def _predictor_spec(predictor_name: str) -> PredictorSpec:
+    """Return the storage spec for one configured predictor."""
     try:
-        return PREDICTOR_NAME_MAP[predictor_name]
+        return PREDICTOR_SPECS[predictor_name]
     except KeyError as exc:
         raise ValueError(f"Unsupported TRF predictor: {predictor_name!r}") from exc
 
@@ -137,6 +155,15 @@ def _timing_sidecar_path(paths: ProjectPaths, *, subject_id: str, task: str, run
     return paths.out_dir / "eeg" / "downsampled" / f"{_run_stem(subject_id, task, run_id)}{TIMING_JSON_SUFFIX}"
 
 
+def _partner_subject_id(subject_id: str) -> str:
+    """Return the paired partner subject id using the project's odd/even dyad rule."""
+    subject_num = int(str(subject_id).removeprefix("sub-"))
+    partner_num = subject_num + 1 if (subject_num % 2 == 1) else subject_num - 1
+    if partner_num <= 0:
+        raise ValueError(f"Cannot infer partner subject for {subject_id!r}.")
+    return f"sub-{partner_num:03d}"
+
+
 def _predictor_path(
     paths: ProjectPaths,
     *,
@@ -145,16 +172,22 @@ def _predictor_path(
     run_id: str,
     predictor_name: str,
 ) -> Path:
-    """Return the stored continuous predictor path for one run."""
-    descriptor = _predictor_descriptor(predictor_name)
-    descriptor_dir = descriptor.removeprefix("self_").removeprefix("other_")
-    return (
-        paths.out_dir
-        / "features"
-        / "continuous"
-        / descriptor_dir
-        / f"{_run_stem(subject_id, task, run_id)}_desc-{descriptor}_feature.npy"
-    )
+    """Return the stored predictor path for one run."""
+    spec = _predictor_spec(predictor_name)
+    if spec.storage_kind == "continuous":
+        run_stem = _run_stem(subject_id, task, run_id)
+        return paths.out_dir / "features" / "continuous" / spec.dirname / f"{run_stem}_desc-{spec.descriptor}_feature.npy"
+    if spec.storage_kind == "event":
+        storage_subject = subject_id if spec.role == "self" else _partner_subject_id(subject_id)
+        run_stem = _run_stem(storage_subject, task, run_id)
+        return (
+            paths.lm_feature_root
+            / "features"
+            / "events"
+            / spec.dirname
+            / f"{run_stem}_desc-{spec.descriptor}_features.tsv"
+        )
+    raise ValueError(f"Unsupported predictor storage kind: {spec.storage_kind!r}")
 
 
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
@@ -218,6 +251,79 @@ def _stack_predictors(predictor_paths: Sequence[Path]) -> np.ndarray:
         if column.ndim == 1:
             column = column[:, np.newaxis]
         columns.append(column)
+    if len(columns) == 0:
+        raise ValueError("No predictor arrays were provided for TRF loading.")
+    return np.concatenate(columns, axis=1)
+
+
+def _load_event_predictor(
+    event_path: Path,
+    *,
+    value_column: str,
+    target_sfreq: float,
+    target_length: int,
+    conversation_start_seconds: float,
+) -> np.ndarray:
+    """Rasterize an event TSV into a single-sample impulse predictor."""
+    table = pd.read_csv(event_path, sep="\t")
+    if "onset" not in table.columns:
+        raise ValueError(f"Event predictor table missing required 'onset' column: {event_path}")
+    if value_column not in table.columns:
+        raise ValueError(f"Event predictor table missing required {value_column!r} column: {event_path}")
+
+    onsets = pd.to_numeric(table["onset"], errors="coerce")
+    values = pd.to_numeric(table[value_column], errors="coerce")
+    valid = onsets.notna() & values.notna()
+    if not bool(valid.any()):
+        return np.zeros((target_length, 1), dtype=np.float32)
+
+    relative_onsets = onsets.loc[valid].to_numpy(dtype=float) - float(conversation_start_seconds)
+    amplitudes = values.loc[valid].to_numpy(dtype=np.float32)
+    sample_indices = np.rint(relative_onsets * float(target_sfreq)).astype(int)
+    within_bounds = (sample_indices >= 0) & (sample_indices < int(target_length))
+    raster = np.zeros(int(target_length), dtype=np.float32)
+    if np.any(within_bounds):
+        np.add.at(raster, sample_indices[within_bounds], amplitudes[within_bounds])
+    return raster[:, np.newaxis]
+
+
+def _load_predictor_matrix(
+    *,
+    predictor_names: Sequence[str],
+    predictor_paths: Sequence[Path],
+    paths: ProjectPaths,
+    subject_id: str,
+    task: str,
+    run_id: str,
+    source_sfreq: float,
+    target_sfreq: float,
+    target_length: int,
+    conversation_start_seconds: float,
+) -> np.ndarray:
+    """Load and align heterogeneous predictor families onto a shared TRF time base."""
+    del paths, subject_id, task, run_id
+    columns: list[np.ndarray] = []
+    for predictor_name, predictor_path in zip(predictor_names, predictor_paths, strict=True):
+        spec = _predictor_spec(predictor_name)
+        if spec.storage_kind == "continuous":
+            values = np.load(predictor_path)
+            column = np.asarray(values, dtype=np.float32)
+            if column.ndim == 1:
+                column = column[:, np.newaxis]
+            column = _resample_array(column, source_sfreq=source_sfreq, target_sfreq=target_sfreq)
+        elif spec.storage_kind == "event":
+            if spec.column_name is None:
+                raise ValueError(f"Event predictor {predictor_name!r} is missing a column_name.")
+            column = _load_event_predictor(
+                predictor_path,
+                value_column=spec.column_name,
+                target_sfreq=target_sfreq,
+                target_length=target_length,
+                conversation_start_seconds=conversation_start_seconds,
+            )
+        else:
+            raise ValueError(f"Unsupported predictor storage kind: {spec.storage_kind!r}")
+        columns.append(column.astype(np.float32, copy=False))
     if len(columns) == 0:
         raise ValueError("No predictor arrays were provided for TRF loading.")
     return np.concatenate(columns, axis=1)
@@ -288,7 +394,6 @@ def load_trf_run_inputs(
 
         raw = mne.io.read_raw_fif(raw_path, preload=True, verbose="ERROR")
         source_sfreq = float(raw.info["sfreq"])
-        predictor_values = _stack_predictors(predictor_paths)
         target_values = np.asarray(raw.get_data().T, dtype=np.float32)
         conversation_start_seconds = _load_conversation_start_seconds(timing_path)
         cropped_target, start_sample, stop_sample = crop_target_to_conversation_window(
@@ -307,15 +412,22 @@ def load_trf_run_inputs(
             skipped_runs.append(run_id)
             continue
 
-        aligned_predictors = _resample_array(
-            predictor_values,
-            source_sfreq=source_sfreq,
-            target_sfreq=trf_cfg.target_sfreq,
-        )
         aligned_target = _resample_array(
             cropped_target,
             source_sfreq=source_sfreq,
             target_sfreq=trf_cfg.target_sfreq,
+        )
+        aligned_predictors = _load_predictor_matrix(
+            predictor_names=trf_cfg.predictors,
+            predictor_paths=predictor_paths,
+            paths=paths,
+            subject_id=subject_id,
+            task=task,
+            run_id=run_id,
+            source_sfreq=source_sfreq,
+            target_sfreq=trf_cfg.target_sfreq,
+            target_length=aligned_target.shape[0],
+            conversation_start_seconds=conversation_start_seconds,
         )
         aligned_predictors, aligned_target = _trim_to_shared_length(aligned_predictors, aligned_target)
 

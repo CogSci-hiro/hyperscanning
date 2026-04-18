@@ -16,6 +16,8 @@ def test_project_paths_from_config_builds_path_objects(sample_config_dict: dict)
 
     assert paths.raw_root == Path("raw")
     assert paths.derived_root == Path("derived")
+    assert paths.out_dir == Path("derived")
+    assert paths.lm_feature_root == Path("derived")
     assert paths.results_root == Path("results")
     assert paths.reports_root == Path("reports")
 

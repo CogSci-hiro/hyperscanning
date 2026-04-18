@@ -23,6 +23,10 @@ SUPPORTED_TRF_PREDICTORS: frozenset[str] = frozenset(
         "f0",
         "self_f0",
         "other_f0",
+        "self_entropy",
+        "other_entropy",
+        "self_surprisal",
+        "other_surprisal",
     }
 )
 
