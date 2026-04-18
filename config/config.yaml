@@ -52,6 +52,9 @@ min_response_duration: 0.01
 
 # Preprocessing ########################################################################################################
 
+preprocessing:
+  save_intermediates: true
+
 # Interpolation
 interpolate:
   method: "spline"

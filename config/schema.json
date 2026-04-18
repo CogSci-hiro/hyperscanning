@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "hyperscanning config",
+  "type": "object",
+  "properties": {
+    "paths": {
+      "type": "object",
+      "properties": {
+        "bids_root": {"type": "string", "minLength": 1},
+        "derived_root": {"type": "string", "minLength": 1},
+        "annotation_root": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "debug": {"type": "object", "additionalProperties": true},
+    "subjects": {"type": "object", "additionalProperties": true},
+    "tasks": {"type": "object", "additionalProperties": true},
+    "runs": {"type": "object", "additionalProperties": true},
+    "eeg": {"type": "object", "additionalProperties": true},
+    "annotations": {"type": "object", "additionalProperties": true},
+    "preprocessing": {
+      "type": "object",
+      "properties": {
+        "save_intermediates": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "interpolate": {"type": "object", "additionalProperties": true},
+    "filter": {"type": "object", "additionalProperties": true},
+    "epochs": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": true
+}

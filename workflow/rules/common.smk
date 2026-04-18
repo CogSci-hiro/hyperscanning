@@ -15,12 +15,21 @@
 #
 
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+import re
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from snakemake.exceptions import WorkflowError
 
 conda:
     CONDA_PY_ENV
+
+
+PREPROCESSING_SAVE_INTERMEDIATES = bool(
+    config.get("preprocessing", {}).get(
+        "save_intermediates",
+        config.get("preprocessing", {}).get("output", {}).get("save_intermediates", True),
+    )
+)
 
 
 # =============================================================================
@@ -204,6 +213,11 @@ def derived_path(*parts: str) -> str:
         # "data/derived/epochs/sub-01/run-01/epochs_epo.fif"
     """
     return str(Path(config["paths"]["derived_root"]) / Path(*parts))
+
+
+def maybe_temp(path: str) -> str:
+    """Wrap preprocess intermediates in Snakemake `temp(...)` when retention is disabled."""
+    return path if PREPROCESSING_SAVE_INTERMEDIATES else temp(path)
 
 
 def results_path(*parts: str) -> str:

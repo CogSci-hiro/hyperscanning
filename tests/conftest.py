@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import sys
 from typing import Any
+import copy
 
 import numpy as np
 import pytest
@@ -36,17 +37,23 @@ class DummyRaw:
     first_samp: int = 0
 
     def __post_init__(self) -> None:
-        self.info: dict[str, Any] = {"sfreq": self.sfreq, "bads": []}
+        self.info: dict[str, Any] = {
+            "sfreq": self.sfreq,
+            "bads": [],
+            "chs": [{"loc": np.array([1.0, 1.0, 1.0, 0.0])} for _ in self.ch_names],
+        }
+        self._channel_types: dict[str, str] = {name: "eeg" for name in self.ch_names}
         self.calls: list[tuple[str, Any]] = []
 
     def crop(self, tmin: float, tmax: float):
         self.calls.append(("crop", (tmin, tmax)))
         return self
 
-    def set_montage(self, montage: Any, on_missing: str = "warn") -> None:
-        self.calls.append(("set_montage", (montage, on_missing)))
+    def set_montage(self, montage: Any, on_missing: str = "warn", match_case: bool = False) -> None:
+        self.calls.append(("set_montage", (montage, on_missing, match_case)))
 
-    def set_channel_types(self, mapping: dict[str, str]) -> None:
+    def set_channel_types(self, mapping: dict[str, str], on_unit_change: str = "ignore") -> None:
+        self._channel_types.update(mapping)
         self.calls.append(("set_channel_types", mapping))
 
     def resample(self, sfreq: float, npad: str = "auto") -> None:
@@ -62,18 +69,52 @@ class DummyRaw:
 
     def drop_channels(self, channels: list[str]) -> None:
         self.calls.append(("drop_channels", channels))
+        ch_info_by_name = dict(zip(self.ch_names, self.info["chs"], strict=False))
         self.ch_names = [c for c in self.ch_names if c not in channels]
+        for channel in channels:
+            self._channel_types.pop(channel, None)
+        self.info["chs"] = [ch_info_by_name[name] for name in self.ch_names]
 
-    def set_eeg_reference(self, ref_channels: str = "average") -> None:
+    def set_eeg_reference(self, ref_channels: str = "average", projection: bool = False, verbose: str = "ERROR") -> None:
         self.calls.append(("set_eeg_reference", ref_channels))
 
-    def filter(self, l_freq: float, h_freq: float) -> None:
-        self.calls.append(("filter", (l_freq, h_freq)))
+    def filter(self, l_freq: float, h_freq: float, picks: str | None = None, verbose: str = "ERROR") -> None:
+        self.calls.append(("filter", (l_freq, h_freq, picks)))
 
-    def interpolate_bads(self, reset_bads: bool = True, method: str = "spline") -> None:
-        self.calls.append(("interpolate_bads", (reset_bads, method)))
+    def interpolate_bads(
+        self,
+        reset_bads: bool = True,
+        method: str = "spline",
+        exclude: list[str] | None = None,
+        verbose: str = "ERROR",
+    ) -> None:
+        self.calls.append(("interpolate_bads", (reset_bads, method, tuple(exclude or []))))
         if reset_bads:
             self.info["bads"] = []
+
+    def copy(self):
+        duplicate = copy.deepcopy(self)
+        duplicate.calls = self.calls
+        return duplicate
+
+    def pick(self, picks):
+        ch_info_by_name = dict(zip(self.ch_names, self.info["chs"], strict=False))
+        if isinstance(picks, str):
+            if picks == "eeg":
+                selected = [name for name in self.ch_names if self._channel_types.get(name) == "eeg"]
+            else:
+                selected = [name for name in self.ch_names if self._channel_types.get(name) == picks]
+        else:
+            selected = list(picks)
+        self.calls.append(("pick", tuple(selected)))
+        self.ch_names = [name for name in self.ch_names if name in selected]
+        self._channel_types = {name: self._channel_types.get(name, "eeg") for name in self.ch_names}
+        self.info["bads"] = [name for name in self.info["bads"] if name in self.ch_names]
+        self.info["chs"] = [ch_info_by_name[name] for name in self.ch_names]
+        return self
+
+    def get_channel_types(self) -> list[str]:
+        return [self._channel_types.get(name, "eeg") for name in self.ch_names]
 
 
 @dataclass

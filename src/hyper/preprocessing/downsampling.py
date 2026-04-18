@@ -18,6 +18,7 @@
 # duplicating the logic.
 
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -52,6 +53,8 @@ BIDS_TYPE_TO_MNE: Dict[str, str] = {
     "SEEG": "seeg",
     "DBS": "dbs",
 }
+
+REFERENCE_NAME_PATTERN = re.compile(r"^(?:[lr]ear|[lr]pa|[am][12]|mastoids?)$", flags=re.IGNORECASE)
 
 CONVERSATION_DURATION_S: int = 4 * 60
 # Backward-compatibility alias; prefer CONVERSATION_DURATION_S in new code.
@@ -139,6 +142,13 @@ def _read_channels_tsv(channels_tsv_path: Path) -> ChannelsInfo:
     return ChannelsInfo(bads=tuple(bads), channel_types=channel_types)
 
 
+def _coerce_reference_like_type(channel_name: str, channel_type: str) -> str:
+    """Treat reference-like EEG labels as non-EEG auxiliaries."""
+    if channel_type == "eeg" and REFERENCE_NAME_PATTERN.match(channel_name.strip()):
+        return "misc"
+    return channel_type
+
+
 def _get_montage_name(cfg: ProjectConfig) -> Optional[str]:
     """
     Retrieve montage name from config if present.
@@ -211,16 +221,20 @@ def _apply_montage_from_config(raw: mne.io.BaseRaw, config: ProjectConfig) -> No
     montage_name = _get_montage_name(config)
     if montage_name is not None:
         montage = mne.channels.make_standard_montage(montage_name)
-        raw.set_montage(montage, on_missing="warn")
+        raw.set_montage(montage, on_missing="ignore", match_case=False)
 
 
 def _apply_channel_types(raw: mne.io.BaseRaw, channels_info: ChannelsInfo) -> None:
     """Set channel types for channels present in raw."""
     if channels_info.channel_types:
         existing_names = set(raw.ch_names)
-        to_set = {k: v for k, v in channels_info.channel_types.items() if k in existing_names}
+        to_set = {
+            k: _coerce_reference_like_type(k, v)
+            for k, v in channels_info.channel_types.items()
+            if k in existing_names
+        }
         if to_set:
-            raw.set_channel_types(to_set)
+            raw.set_channel_types(to_set, on_unit_change="ignore")
 
 
 def _apply_bad_channels(raw: mne.io.BaseRaw, channels_info: ChannelsInfo) -> None:
@@ -228,6 +242,14 @@ def _apply_bad_channels(raw: mne.io.BaseRaw, channels_info: ChannelsInfo) -> Non
     if channels_info.bads:
         existing_names = set(raw.ch_names)
         raw.info["bads"] = [ch for ch in channels_info.bads if ch in existing_names]
+
+
+def _pick_eeg_channels(raw: mne.io.BaseRaw) -> mne.io.BaseRaw:
+    """Drop non-EEG channels so downstream FIFs match speech-rate preprocessing behavior."""
+    eeg_names = [name for name, channel_type in zip(raw.ch_names, raw.get_channel_types(), strict=False) if channel_type == "eeg"]
+    if not eeg_names:
+        raise ValueError("No EEG channels could be identified after applying BIDS channel types.")
+    return raw.pick(eeg_names)
 
 
 def _resample_if_needed(raw: mne.io.BaseRaw, *, target_sfreq_hz: float) -> None:
@@ -296,8 +318,9 @@ def downsample_edf_to_fif(
     channels_info = _read_channels_tsv(channels_tsv_path)
     raw = _load_raw_edf(input_edf_path, preload=preload)
     raw = _crop_to_conversation(raw)
-    _apply_montage_from_config(raw, config)
     _apply_channel_types(raw, channels_info)
+    raw = _pick_eeg_channels(raw)
+    _apply_montage_from_config(raw, config)
     _apply_bad_channels(raw, channels_info)
     _resample_if_needed(raw, target_sfreq_hz=target_sfreq_hz)
     _save_downsampled_raw(raw, output_fif_path)

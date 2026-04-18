@@ -20,3 +20,4 @@ def test_bandpass_filter_fif_to_fif_calls_filter_and_save(monkeypatch, tmp_path:
     call_names = [name for name, _ in dummy_raw.calls]
     assert "filter" in call_names
     assert "save" in call_names
+    assert ("filter", (1.0, 40.0, "eeg")) in dummy_raw.calls

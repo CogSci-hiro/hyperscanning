@@ -1,6 +1,19 @@
 conda:
     CONDA_PY_ENV
 
+rule preprocessed_all:
+    input:
+        filter_non_existent(
+            expand(
+                derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
+                subject=SUBJECTS,
+                task=TASKS,
+                run=RUNS,
+            ),
+          bids_root=BIDS_ROOT,
+          cfg=config
+        )
+
 rule downsample_all:
     input:
         filter_non_existent(
@@ -98,10 +111,10 @@ rule epoch_all:
 rule canary_preprocessing:
     input:
         ds=derived_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds.fif"),
-        reref=derived_path("eeg", "reref", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_reref.fif"),
+        filt=derived_path("eeg", "filtered", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_filt.fif"),
         ica=derived_path("eeg", "ica_applied", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ica.fif"),
         interp=derived_path("eeg", "interpolated", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_interp.fif"),
-        filt=derived_path("eeg", "filtered", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_filt.fif"),
+        reref=derived_path("eeg", "reref", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_reref.fif"),
         metadata=derived_path("beh", "metadata", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_metadata.tsv"),
         events=derived_path("beh", "metadata", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_events.npy"),
         epochs=derived_path("eeg", "epochs", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_epochs-epo.fif"),

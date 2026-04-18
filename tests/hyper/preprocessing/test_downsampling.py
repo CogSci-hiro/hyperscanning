@@ -52,10 +52,38 @@ def test_downsample_edf_to_fif_applies_processing(monkeypatch, tmp_path: Path, d
 
     call_names = [name for name, _ in dummy_raw.calls]
     assert "crop" in call_names
+    assert "pick" in call_names
     assert "set_montage" in call_names
     assert "set_channel_types" in call_names
     assert "resample" in call_names
     assert "save" in call_names
+
+
+def test_downsample_drops_non_eeg_channels_after_applying_bids_types(monkeypatch, tmp_path: Path, dummy_raw) -> None:
+    """Reference and EMG channels should be excluded from the saved EEG raw."""
+    channels_path = tmp_path / "channels.tsv"
+    pd.DataFrame(
+        {
+            "name": ["Fp1", "Fp2", "EMG1", "Status"],
+            "status": ["good", "good", "good", "good"],
+            "type": ["EEG", "EEG", "EMG", "STIM"],
+        }
+    ).to_csv(channels_path, sep="\t", index=False)
+
+    monkeypatch.setattr(mod.mne.io, "read_raw_edf", lambda *a, **k: dummy_raw)
+    monkeypatch.setattr(mod.mne, "find_events", lambda raw: np.array([[100, 0, 1]]))
+    monkeypatch.setattr(mod.mne.channels, "make_standard_montage", lambda name: f"montage:{name}")
+
+    cfg = ProjectConfig(raw={"eeg": {"montage": "biosemi64"}})
+    mod.downsample_edf_to_fif(
+        input_edf_path=tmp_path / "in.edf",
+        channels_tsv_path=channels_path,
+        output_fif_path=tmp_path / "out.fif",
+        config=cfg,
+        target_sfreq_hz=50.0,
+    )
+
+    assert dummy_raw.ch_names == ["Fp1", "Fp2"]
 
 
 def test_should_resample_uses_tolerance() -> None:

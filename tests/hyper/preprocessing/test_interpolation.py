@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -56,3 +57,20 @@ def test_interpolate_bads_calls_interpolation_when_bads_present(monkeypatch, tmp
 
     assert any(name == "interpolate_bads" for name, _ in dummy_raw.calls)
     assert dummy_raw.info["bads"] == []
+    assert ("interpolate_bads", (True, "nearest", tuple())) in dummy_raw.calls
+
+
+def test_interpolate_bads_rejects_bad_channels_without_positions(monkeypatch, tmp_path: Path, dummy_raw) -> None:
+    """Speech-rate's interpolation safety check should fail on missing sensor locations."""
+    channels_path = tmp_path / "channels.tsv"
+    pd.DataFrame({"name": ["Fp1"], "status": ["bad"]}).to_csv(channels_path, sep="\t", index=False)
+    dummy_raw.info["chs"][0]["loc"] = np.array([np.nan, np.nan, np.nan, 0.0])
+    monkeypatch.setattr(mod.mne.io, "read_raw_fif", lambda *a, **k: dummy_raw)
+
+    with pytest.raises(ValueError, match="without finite sensor positions"):
+        mod.interpolate_bads_fif_to_fif(
+            input_fif_path=tmp_path / "in.fif",
+            channels_tsv_path=channels_path,
+            output_fif_path=tmp_path / "out.fif",
+            config=object(),
+        )

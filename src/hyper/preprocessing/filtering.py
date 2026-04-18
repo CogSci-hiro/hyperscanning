@@ -40,7 +40,7 @@ def _apply_bandpass_filter(
     h_freq_hz: float,
 ) -> None:
     """Apply the configured band-pass range in-place."""
-    raw.filter(l_freq=l_freq_hz, h_freq=h_freq_hz)
+    raw.filter(l_freq=l_freq_hz, h_freq=h_freq_hz, picks="eeg", verbose="ERROR")
 
 
 def _save_filtered_raw(raw: mne.io.BaseRaw, output_fif_path: Path) -> None:

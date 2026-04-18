@@ -18,18 +18,17 @@ def test_load_channels_tsv_requires_required_columns(tmp_path: Path) -> None:
 
 
 def test_rereference_raw_runs_expected_steps(monkeypatch, dummy_raw) -> None:
-    """Core reref flow should drop auxiliaries, set bads, reference, and montage."""
+    """Core reref flow should load data and apply the configured reference."""
     channels_df = pd.DataFrame({"name": ["Fp1"], "status": ["bad"]})
-    monkeypatch.setattr(mod.mne.channels, "make_standard_montage", lambda name: f"montage:{name}")
 
     mod.rereference_raw(dummy_raw, channels_df)
 
     call_names = [name for name, _ in dummy_raw.calls]
     assert "load_data" in call_names
-    assert "drop_channels" in call_names
     assert "set_eeg_reference" in call_names
-    assert "set_montage" in call_names
-    assert dummy_raw.info["bads"] == ["Fp1"]
+    assert "drop_channels" not in call_names
+    assert "set_montage" not in call_names
+    assert dummy_raw.info["bads"] == []
 
 
 def test_rereference_fif_to_fif_wires_io(monkeypatch, tmp_path: Path, dummy_raw) -> None:
@@ -38,7 +37,6 @@ def test_rereference_fif_to_fif_wires_io(monkeypatch, tmp_path: Path, dummy_raw)
     pd.DataFrame({"name": ["Fp1"], "status": ["good"]}).to_csv(channels_path, sep="\t", index=False)
 
     monkeypatch.setattr(mod.mne.io, "read_raw_fif", lambda *a, **k: dummy_raw)
-    monkeypatch.setattr(mod.mne.channels, "make_standard_montage", lambda name: f"montage:{name}")
 
     mod.rereference_fif_to_fif(
         input_fif_path=tmp_path / "in.fif",

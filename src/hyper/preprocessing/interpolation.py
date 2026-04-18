@@ -10,6 +10,7 @@
 from pathlib import Path
 
 import mne
+import numpy as np
 import pandas as pd
 
 # ==================================================================================================
@@ -54,8 +55,32 @@ def _set_bads_from_channels(raw: mne.io.BaseRaw, channels_df: pd.DataFrame) -> N
 
 def _interpolate_if_needed(raw: mne.io.BaseRaw, *, method: str) -> None:
     """Interpolate only when there are marked bad channels."""
-    if len(raw.info["bads"]) > 0:
-        raw.interpolate_bads(reset_bads=True, method=method)
+    if len(raw.info["bads"]) == 0:
+        return
+
+    invalid_position_names: list[str] = []
+    bad_name_set = set(raw.info["bads"])
+    channel_types = raw.get_channel_types()
+    for channel_name, channel_type, channel_info in zip(raw.ch_names, channel_types, raw.info["chs"], strict=False):
+        if channel_type != "eeg":
+            continue
+        position = np.asarray(channel_info["loc"][:3], dtype=float)
+        if not np.isfinite(position).all():
+            invalid_position_names.append(channel_name)
+
+    invalid_bad_position_names = [name for name in dict.fromkeys(invalid_position_names) if name in bad_name_set]
+    if invalid_bad_position_names:
+        raise ValueError(
+            "Cannot interpolate bad EEG channels without finite sensor positions: "
+            f"{invalid_bad_position_names}"
+        )
+
+    raw.interpolate_bads(
+        reset_bads=True,
+        method=method,
+        exclude=invalid_position_names,
+        verbose="ERROR",
+    )
 
 
 def _save_interpolated_raw(raw: mne.io.BaseRaw, output_fif_path: Path) -> None:

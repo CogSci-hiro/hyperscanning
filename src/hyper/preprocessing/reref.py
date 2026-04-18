@@ -1,16 +1,15 @@
 # ==================================================================================================
 #                         Core: rereferencing (library)
 # ==================================================================================================
-# > EEG rereferencing and montage application.
+# > EEG rereferencing.
 # > Continuous EEG data were rereferenced using an a priori reference scheme (average reference
-# > by default). Prior to rereferencing, non-EEG auxiliary channels (e.g., EMG/ear/status channels)
-# > were dropped when present, and channels marked as bad in the BIDS channels.tsv file were
-# > propagated to the recording’s bad-channel list. A standard electrode montage (BioSemi-64 by
-# > default) was then applied to ensure consistent channel locations. The rereferenced continuous
-# >data were saved in FIF format for downstream preprocessing.
+# > by default) after downsampling, filtering, ICA application, and bad-channel interpolation.
+# > Channel typing, bad-channel propagation, and montage application happen earlier in the
+# > pipeline, so this step now performs the final rereference only and saves the fully
+# > preprocessed continuous signal for downstream analyses.
 
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 import mne
 import pandas as pd
@@ -20,17 +19,7 @@ import pandas as pd
 # ==================================================================================================
 
 DEFAULT_REFERENCE: str = "average"
-DEFAULT_MONTAGE: str = "biosemi64"
-DEFAULT_ON_MISSING: str = "warn"
 DEFAULT_PRELOAD: bool = False
-
-DEFAULT_DROP_CHANNELS: tuple[str, ...] = (
-    "EMG1",
-    "EMG2",
-    "lEAR",
-    "rEAR",
-    "Status",
-)
 
 
 # ==================================================================================================
@@ -79,32 +68,12 @@ def _load_data_inplace(raw: mne.io.BaseRaw) -> mne.io.BaseRaw:
     return raw.load_data()
 
 
-def _drop_optional_channels(raw: mne.io.BaseRaw, drop_channels: Iterable[str]) -> None:
-    """Drop configured auxiliary channels if present."""
-    try:
-        raw.drop_channels([ch for ch in drop_channels if ch in raw.ch_names])
-    except Exception:  # noqa
-        pass
-
-
-def _set_bad_channels_from_table(raw: mne.io.BaseRaw, channels_df: pd.DataFrame) -> None:
-    """Populate bad channels from channels.tsv."""
-    bads = channels_df.loc[channels_df["status"] == "bad", "name"].astype(str).tolist()
-    raw.info["bads"] = bads
-
-
 def _apply_eeg_reference(raw: mne.io.BaseRaw, reference: str) -> None:
     """Apply configured EEG reference."""
     if reference == "average":
-        raw.set_eeg_reference(ref_channels="average")
+        raw.set_eeg_reference(ref_channels="average", projection=False, verbose="ERROR")
     else:
-        raw.set_eeg_reference(ref_channels=reference)
-
-
-def _apply_standard_montage(raw: mne.io.BaseRaw, *, montage_name: str, on_missing: str) -> None:
-    """Set channel locations from a named standard montage."""
-    montage = mne.channels.make_standard_montage(montage_name)
-    raw.set_montage(montage, on_missing=on_missing)
+        raw.set_eeg_reference(ref_channels=reference, projection=False, verbose="ERROR")
 
 
 def _load_raw_fif(input_fif_path: Path, *, preload: bool) -> mne.io.BaseRaw:
@@ -123,18 +92,14 @@ def rereference_raw(
     channels_df: pd.DataFrame,
     *,
     reference: str = DEFAULT_REFERENCE,
-    montage_name: str = DEFAULT_MONTAGE,
-    on_missing: str = DEFAULT_ON_MISSING,
-    drop_channels: Iterable[str] = DEFAULT_DROP_CHANNELS,
 ) -> mne.io.BaseRaw:
     """
-    Apply EEG rereferencing and montage, using channels.tsv to set bad channels.
+    Apply the final EEG rereference.
 
-    This implements your legacy logic:
-    - drop EMG / ear / stim channels if present
-    - set `raw.info["bads"]` from channels.tsv status == "bad"
-    - apply average EEG reference
-    - set BioSemi-64 montage
+    The `channels_df` argument is retained for backward compatibility with the
+    existing CLI and Snakemake interfaces, but the table is no longer used to
+    mutate channel state here because earlier steps already applied BIDS
+    channel types, bad-channel annotations, and montage information.
 
     Parameters
     ----------
@@ -151,13 +116,6 @@ def rereference_raw(
         | Fp2  | bad    |
     reference
         EEG reference to apply. Default is "average".
-    montage_name
-        Montage name passed to `mne.channels.make_standard_montage`.
-    on_missing
-        How to handle missing montage channels when calling `raw.set_montage`.
-    drop_channels
-        Channel names to drop if present.
-
     Returns
     -------
     mne.io.BaseRaw
@@ -176,12 +134,9 @@ def rereference_raw(
         raw.save("raw_reref.fif", overwrite=True)
     """
 
+    _ = channels_df
     raw = _load_data_inplace(raw)
-    _drop_optional_channels(raw, drop_channels)
-    _set_bad_channels_from_table(raw, channels_df)
     _apply_eeg_reference(raw, reference)
-    _apply_standard_montage(raw, montage_name=montage_name, on_missing=on_missing)
-
     return raw
 
 
@@ -198,7 +153,6 @@ def rereference_fif_to_fif(
     preload: bool = DEFAULT_PRELOAD,
     reference: str = DEFAULT_REFERENCE,
     montage_name: Optional[str] = None,
-    on_missing: str = DEFAULT_ON_MISSING,
 ) -> None:
     """
     Load a FIF file, rereference EEG, apply montage, and save a new FIF file.
@@ -219,10 +173,7 @@ def rereference_fif_to_fif(
     reference
         EEG reference to apply (default "average").
     montage_name
-        Montage name; if None, uses DEFAULT_MONTAGE.
-        (You can later wire this to config, e.g., cfg.raw["eeg"]["montage"].)
-    on_missing
-        Passed to `raw.set_montage`.
+        Retained for backward compatibility with older call sites. Ignored.
 
     Returns
     -------
@@ -253,7 +204,5 @@ def rereference_fif_to_fif(
         raw,
         channels_df,
         reference=reference,
-        montage_name=montage_name or DEFAULT_MONTAGE,
-        on_missing=on_missing,
     )
     _save_rereferenced_raw(raw, output_fif_path)
