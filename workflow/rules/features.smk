@@ -194,3 +194,34 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
                 --task {wildcards.task} \
                 --out-dir $(dirname {output.fold_scores})
             """
+
+
+def _trf_qc_inputs(_wildcards):
+    inputs = []
+    task = "conversation"
+    if task not in TASKS:
+        return inputs
+    for subject in SUBJECTS:
+        inputs.append(out_path("trf", subject, f"task-{task}", "coefficients.npz"))
+        inputs.append(out_path("trf", subject, f"task-{task}", "design_info.json"))
+    return inputs
+
+
+if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+    rule trf_qc_kernels:
+        input:
+            _trf_qc_inputs
+        output:
+            manifest=out_path("figures", "trf_kernels", "manifest.json")
+        conda:
+            CONDA_PY_ENV
+        threads: 1
+        resources:
+            mem_mb=4_000
+        shell:
+            """
+            {HYPER_MODULE_CMD} trf-kernel-qc \
+                --config config/config.yaml \
+                --task conversation \
+                --manifest {output.manifest}
+            """

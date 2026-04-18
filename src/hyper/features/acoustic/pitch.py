@@ -51,6 +51,74 @@ class F0Metadata(ContinuousFeatureMetadata):
 
 F0FeatureResult = ContinuousFeatureResult
 
+FILTERED_AUTOCORRELATION_COMMAND = "To Pitch (filtered autocorrelation)..."
+
+
+def _is_filtered_autocorrelation_compatibility_error(exc: Exception) -> bool:
+    """Return True when Praat/Parselmouth lacks filtered-autocorrelation support."""
+    text = str(exc)
+    return FILTERED_AUTOCORRELATION_COMMAND in text or "filtered-autocorrelation" in text.lower()
+
+
+def _compute_f0_with_parselmouth_autocorrelation(
+    waveform: np.ndarray,
+    audio_sampling_rate_hz: int,
+    config: PitchExtractionConfig,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Fallback F0 extraction using Parselmouth's standard autocorrelation tracker."""
+    import parselmouth
+
+    sound = parselmouth.Sound(
+        np.asarray(waveform, dtype=np.float64),
+        sampling_frequency=float(audio_sampling_rate_hz),
+    )
+    pitch = sound.to_pitch_ac(
+        time_step=float(config.frame_step_seconds),
+        pitch_floor=float(config.fmin_hz),
+        pitch_ceiling=float(config.fmax_hz),
+    )
+    raw_time_seconds = np.asarray(pitch.xs(), dtype=np.float32)
+    raw_values = np.asarray(pitch.selected_array["frequency"], dtype=np.float32)
+    raw_values[raw_values <= 0.0] = np.nan
+    return raw_time_seconds, raw_values
+
+
+def _extract_raw_f0_contour(
+    waveform: np.ndarray,
+    audio_sampling_rate_hz: int,
+    config: PitchExtractionConfig,
+) -> tuple[np.ndarray, np.ndarray, str]:
+    """Extract a raw F0 contour, falling back when VoxAtlas needs newer Praat support."""
+    extractor = F0Extractor()
+    params = {
+        "fmin": config.fmin_hz,
+        "fmax": config.fmax_hz,
+        "frame_length": config.frame_length_seconds,
+        "frame_step": config.frame_step_seconds,
+    }
+    feature_input = FeatureInput(
+        audio=Audio(waveform=np.asarray(waveform, dtype=np.float32), sample_rate=audio_sampling_rate_hz),
+        units=None,
+        context={},
+    )
+    try:
+        raw_output = extractor.compute(feature_input, params)
+    except RuntimeError as exc:
+        if not _is_filtered_autocorrelation_compatibility_error(exc):
+            raise
+        raw_time_seconds, raw_values = _compute_f0_with_parselmouth_autocorrelation(
+            waveform=waveform,
+            audio_sampling_rate_hz=audio_sampling_rate_hz,
+            config=config,
+        )
+        return raw_time_seconds, raw_values, "parselmouth.to_pitch_ac"
+
+    return (
+        np.asarray(raw_output.time, dtype=np.float32),
+        np.asarray(raw_output.values, dtype=np.float32),
+        "voxatlas.features.acoustic.pitch.f0.F0Extractor",
+    )
+
 
 def _fill_unvoiced_frames(
     time_seconds: np.ndarray,
@@ -103,22 +171,11 @@ def extract_f0_feature(
 ) -> F0FeatureResult:
     """Extract raw F0 with explicit unvoiced regions and align to EEG samples."""
     resolved_config = config or PitchExtractionConfig()
-    extractor = F0Extractor()
-    params = {
-        "fmin": resolved_config.fmin_hz,
-        "fmax": resolved_config.fmax_hz,
-        "frame_length": resolved_config.frame_length_seconds,
-        "frame_step": resolved_config.frame_step_seconds,
-    }
-
-    feature_input = FeatureInput(
-        audio=Audio(waveform=np.asarray(waveform, dtype=np.float32), sample_rate=audio_sampling_rate_hz),
-        units=None,
-        context={},
+    raw_time_seconds, raw_values, extractor_backend = _extract_raw_f0_contour(
+        waveform=waveform,
+        audio_sampling_rate_hz=audio_sampling_rate_hz,
+        config=resolved_config,
     )
-    raw_output = extractor.compute(feature_input, params)
-    raw_time_seconds = np.asarray(raw_output.time, dtype=np.float32)
-    raw_values = np.asarray(raw_output.values, dtype=np.float32)
 
     filled_values, resampling_method = _fill_unvoiced_frames(
         raw_time_seconds,
@@ -142,9 +199,10 @@ def extract_f0_feature(
             "fmax_hz": resolved_config.fmax_hz,
             "frame_length_seconds": resolved_config.frame_length_seconds,
             "frame_step_seconds": resolved_config.frame_step_seconds,
+            "extractor_backend": extractor_backend,
         },
         voxatlas_version=get_voxatlas_version(),
-        voxatlas_function="voxatlas.features.acoustic.pitch.f0.F0Extractor",
+        voxatlas_function=extractor_backend,
         resampling_method=resampling_method,
         alignment_target=resolved_config.alignment_target,
         units="Hz",
@@ -152,6 +210,7 @@ def extract_f0_feature(
         notes=[
             "Raw extracted F0 stores unvoiced frames as NaN.",
             "EEG-aligned values reflect the configured fill strategy.",
+            "Falls back to Parselmouth autocorrelation if VoxAtlas requests an unsupported Praat filtered-autocorrelation command.",
         ],
         raw_unvoiced_frame_count=int(np.count_nonzero(~np.isfinite(raw_values))),
         raw_frame_count=int(raw_values.size),

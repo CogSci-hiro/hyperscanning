@@ -45,6 +45,11 @@ if _features_config_path.exists():
     _features_cfg = _load_yaml_mapping(_features_config_path)
     config.update(_merge_mapping_sections(_features_cfg, config, sections=("features",)))
 
+_trf_config_path = Path(CONFIG_PATH).with_name("trf.yaml")
+if _trf_config_path.exists():
+    _trf_cfg = _load_yaml_mapping(_trf_config_path)
+    config.update(_merge_mapping_sections(_trf_cfg, config, sections=("trf",)))
+
 _paths_config_path = Path(CONFIG_PATH).with_name("paths.yaml")
 if _paths_config_path.exists():
     _paths_cfg = _load_yaml_mapping(_paths_config_path)

@@ -1,4 +1,4 @@
-"""Vowel-centered formant event extraction backed by VoxAtlas formant utilities."""
+"""Vowel-centered formant event extraction backed by local Parselmouth formant tracking."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from voxatlas.phonology.articulatory_utils import load_phonology_resources, lookup_articulatory_features
-from voxatlas.phonology.formant_utils import compute_formant_tracks
 from voxatlas.units.alignment_loader import load_textgrid
 
 from .common import dataclass_to_dict, get_voxatlas_version
@@ -52,6 +51,12 @@ FORMANT_EVENT_COLUMNS: tuple[str, ...] = (
     "extraction_status",
     "notes",
 )
+
+
+def _safe_float32(value: float | None) -> np.float32:
+    if value is None or not np.isfinite(value):
+        return np.float32(np.nan)
+    return np.float32(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,6 +246,72 @@ def _intervals_to_phoneme_table(intervals: list[VowelInterval]) -> pd.DataFrame:
     )
 
 
+def _compute_interval_formant_tracks(
+    waveform: np.ndarray,
+    audio_sampling_rate_hz: int,
+    intervals: list[VowelInterval],
+    config: FormantEventExtractionConfig,
+) -> pd.DataFrame:
+    """Compute local formant tracks for intervals already vetted as vowels."""
+    try:
+        import parselmouth
+    except ImportError as exc:
+        raise ImportError("Formant extraction requires Parselmouth in this environment.") from exc
+
+    rows: list[dict[str, Any]] = []
+    frame_length = float(config.frame_length_seconds)
+    frame_step = float(config.frame_step_seconds)
+
+    for interval in intervals:
+        start_sample = max(0, int(round(interval.onset_seconds * audio_sampling_rate_hz)))
+        end_sample = min(len(waveform), int(round(interval.offset_seconds * audio_sampling_rate_hz)))
+        segment = np.asarray(waveform[start_sample:end_sample], dtype=np.float64)
+        if segment.size == 0:
+            continue
+
+        sound = parselmouth.Sound(segment, sampling_frequency=float(audio_sampling_rate_hz))
+        formant = sound.to_formant_burg(
+            time_step=frame_step,
+            max_number_of_formants=5,
+            maximum_formant=float(config.max_formant_hz),
+            window_length=frame_length,
+            pre_emphasis_from=50.0,
+        )
+
+        duration = segment.size / float(audio_sampling_rate_hz)
+        sample_times = np.arange(frame_length / 2.0, max(duration, frame_length / 2.0) + 1e-8, frame_step)
+        if sample_times.size == 0:
+            sample_times = np.array([min(duration / 2.0, frame_length / 2.0)], dtype=np.float32)
+
+        for frame_id, local_time in enumerate(sample_times, start=1):
+            global_time = interval.onset_seconds + float(local_time)
+            values = []
+            for formant_index in (1, 2, 3):
+                value = formant.get_value_at_time(formant_index, float(local_time))
+                values.append(_safe_float32(value if value and value > 0 else np.nan))
+            f1, f2, f3 = values
+            rows.append(
+                {
+                    "frame_id": frame_id,
+                    "start": np.float32(max(interval.onset_seconds, global_time - frame_length / 2.0)),
+                    "end": np.float32(min(interval.offset_seconds, global_time + frame_length / 2.0)),
+                    "time": np.float32(global_time),
+                    "phoneme_id": interval.interval_id,
+                    "label": interval.vowel_label,
+                    "ipa": interval.vowel_label,
+                    "is_vowel": np.float32(1.0),
+                    "F1": f1,
+                    "F2": f2,
+                    "F3": f3,
+                }
+            )
+
+    return pd.DataFrame(
+        rows,
+        columns=["frame_id", "start", "end", "time", "phoneme_id", "label", "ipa", "is_vowel", "F1", "F2", "F3"],
+    )
+
+
 def extract_vowel_formant_events(
     waveform: np.ndarray,
     audio_sampling_rate_hz: int,
@@ -257,18 +328,11 @@ def extract_vowel_formant_events(
         if interval.duration_seconds >= resolved_config.min_interval_duration_seconds
     ]
     if valid_intervals:
-        phoneme_table = _intervals_to_phoneme_table(valid_intervals)
-        tracks = compute_formant_tracks(
-            signal=np.asarray(waveform, dtype=np.float32),
-            sr=int(audio_sampling_rate_hz),
-            phonemes=phoneme_table,
-            language=resolved_config.language,
-            resource_root=resolved_config.resource_root,
-            frame_length=resolved_config.frame_length_seconds,
-            frame_step=resolved_config.frame_step_seconds,
-            lpc_order=resolved_config.lpc_order,
-            max_formant=resolved_config.max_formant_hz,
-            use_parselmouth=resolved_config.use_parselmouth,
+        tracks = _compute_interval_formant_tracks(
+            waveform=np.asarray(waveform, dtype=np.float32),
+            audio_sampling_rate_hz=int(audio_sampling_rate_hz),
+            intervals=valid_intervals,
+            config=resolved_config,
         )
     else:
         tracks = pd.DataFrame()
@@ -315,7 +379,7 @@ def extract_vowel_formant_events(
         audio_sampling_rate_hz=int(audio_sampling_rate_hz),
         extraction_parameters=dataclass_to_dict(resolved_config),
         voxatlas_version=get_voxatlas_version(),
-        voxatlas_function="voxatlas.phonology.formant_utils.compute_formant_tracks",
+        voxatlas_function="hyper.features.acoustic.formants._compute_interval_formant_tracks",
         alignment_target="vowel_events",
         units={
             "onset_seconds": "seconds",
@@ -326,7 +390,7 @@ def extract_vowel_formant_events(
         shape=tuple(event_table.shape),
         notes=[
             "Intervals are supplied externally; this extractor does not perform forced alignment.",
-            "F1/F2 medians are computed within each vowel interval from VoxAtlas formant tracks.",
+            "F1/F2 medians are computed within each vowel interval from local Parselmouth Burg formant tracks.",
         ],
     )
     return FormantEventResult(event_table=event_table, metadata=metadata)

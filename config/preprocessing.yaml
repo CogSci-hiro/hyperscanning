@@ -7,7 +7,7 @@ preprocessing:
     sfreq_hz: 64.0
   filter:
     l_freq_hz: 1.0
-    h_freq_hz: 30.0
+    h_freq_hz: 10.0
   ica:
     path_pattern: "{subject_id}_task-{task}-ica.fif"
   interpolation:

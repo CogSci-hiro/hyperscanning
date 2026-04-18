@@ -25,7 +25,7 @@ class _FakeCommand:
 
 def test_build_arg_parser_contains_registered_subcommands() -> None:
     """Core parser should include all keys declared in command registry."""
-    parser = mod.build_arg_parser()
+    parser = mod.build_arg_parser("filter")
 
     # Parse one valid command to verify parser wiring quickly.
     args = parser.parse_args([
@@ -68,4 +68,4 @@ def test_build_arg_parser_rejects_missing_add_subparser(monkeypatch) -> None:
     monkeypatch.setattr(mod, "_COMMANDS", {"oops": _Broken()})
 
     with pytest.raises(RuntimeError, match="missing add_subparser"):
-        mod.build_arg_parser()
+        mod.build_arg_parser("oops")

@@ -11,7 +11,7 @@ features:
     fmax_hz: 500.0
     frame_length_seconds: 0.040
     frame_step_seconds: 0.010
-    fill_strategy: "linear"
+    fill_strategy: "zero"
   formants:
     frame_length_seconds: 0.025
     frame_step_seconds: 0.010
