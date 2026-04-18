@@ -1,0 +1,55 @@
+{
+"FeatureName": "<feature_name>",
+"FeatureLabel": "<human_readable_label>",
+"FeatureType": "event",
+"Description": "<brief description of the event-like feature table>",
+"TimeBase": "seconds_from_run_onset",
+"Delimiter": "tab",
+"RowDefinition": "<what one row represents>",
+"Columns": {
+"onset": {
+"Description": "Event onset time relative to run onset.",
+"Units": "s",
+"DType": "float"
+},
+"duration": {
+"Description": "Event duration.",
+"Units": "s",
+"DType": "float"
+}
+},
+"Source": {
+"Modality": "annotation",
+"InputFiles": [],
+"InputTimeBase": "seconds",
+"AnnotationSource": null
+},
+"Generation": {
+"SoftwareName": "hyperscanning",
+"SoftwareVersion": "0.1.0",
+"CodeURL": null,
+"ExtractionLibrary": null,
+"ExtractionLibraryVersion": null,
+"ComputationDate": null
+},
+"Method": {
+"Algorithm": null,
+"AlgorithmReference": null,
+"Parameters": {},
+"Preprocessing": [],
+"Postprocessing": [],
+"FilteringRules": [],
+"AggregationRules": []
+},
+"QualityControl": {
+"NumRows": 0,
+"NumMissingValues": 0,
+"ExcludedCount": 0,
+"CategoryCounts": {}
+},
+"FeatureFile": {
+"Path": null,
+"Format": "TSV"
+},
+"Notes": null
+}
