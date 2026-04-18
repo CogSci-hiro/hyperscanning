@@ -1,0 +1,159 @@
+{
+  "FeatureName": "turn_transition_features",
+  "FeatureLabel": "Turn-transition features",
+  "FeatureType": "event",
+  "Description": "Event table describing speaker-to-speaker or within-speaker transitions anchored to the offset of an anchor IPU.",
+  "TimeBase": "seconds_from_run_onset",
+  "Delimiter": "tab",
+  "RowDefinition": "One row represents one transition from an anchor IPU to the next relevant IPU.",
+  "Columns": {
+    "onset": {
+      "Description": "Transition anchor time, defined here as the anchor IPU offset relative to run onset.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "duration": {
+      "Description": "Transition event duration. This template uses 0.0 because the row is anchored to a boundary event.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "anchor_speaker": {
+      "Description": "Speaker for the anchor IPU.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "A",
+        "B"
+      ],
+      "MissingValues": "n/a"
+    },
+    "next_speaker": {
+      "Description": "Speaker for the next IPU considered part of the transition.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "A",
+        "B"
+      ],
+      "MissingValues": "n/a"
+    },
+    "anchor_ipu_id": {
+      "Description": "Identifier for the anchor IPU.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "next_ipu_id": {
+      "Description": "Identifier for the next IPU linked to the transition.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "anchor_offset": {
+      "Description": "Anchor IPU offset time relative to run onset.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "next_onset": {
+      "Description": "Onset of the next IPU relative to run onset.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "gap_or_overlap_s": {
+      "Description": "Signed difference between next_onset and anchor_offset. Positive values indicate a gap and negative values indicate overlap.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "latency_from_anchor_offset_s": {
+      "Description": "Latency from anchor_offset to next_onset. In this template it is numerically identical to gap_or_overlap_s.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "transition_type": {
+      "Description": "Categorical summary of the signed transition timing.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "gap",
+        "overlap",
+        "latch",
+        "within_speaker_pause"
+      ],
+      "MissingValues": "n/a"
+    },
+    "notes": {
+      "Description": "Free-text transition note.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    }
+  },
+  "Source": {
+    "Modality": "annotation",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_desc-ipus_features.tsv"
+    ],
+    "InputTimeBase": "seconds",
+    "AnnotationSource": "Turn-transition events derived from IPU timing"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": null,
+    "ExtractionLibraryVersion": null,
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "Transition derivation from ordered IPU boundaries",
+    "AlgorithmReference": null,
+    "Parameters": {
+      "OnsetAnchor": "anchor_ipu_offset",
+      "GapSignConvention": "positive_is_gap_negative_is_overlap",
+      "LatchDefinition": "<document_if_used>"
+    },
+    "Preprocessing": [
+      "IPU rows sorted by speaker-specific and global onset."
+    ],
+    "Postprocessing": [
+      "Signed transition metrics computed from anchor offset and next onset."
+    ],
+    "FilteringRules": [],
+    "AggregationRules": []
+  },
+  "QualityControl": {
+    "NumRows": 3,
+    "NumMissingValues": 1,
+    "ExcludedCount": 0,
+    "CategoryCounts": {
+      "transition_type": {
+        "gap": 1,
+        "overlap": 1,
+        "within_speaker_pause": 1
+      }
+    },
+    "TimingSorted": true
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-turnTransitions_features.tsv",
+    "Format": "TSV"
+  },
+  "Notes": [
+    "If the project later distinguishes turn exchanges from within-speaker pauses more strictly, keep the sign convention for gap_or_overlap_s unchanged."
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "FeatureName": "envelope",
+  "FeatureLabel": "Speech envelope",
+  "FeatureType": "continuous",
+  "Description": "Continuous speech envelope aligned samplewise to the EEG time base.",
+  "Units": "amplitude",
+  "Shape": [
+    51234
+  ],
+  "DType": "float32",
+  "SamplingFrequency": 512.0,
+  "SamplingFrequencyUnit": "Hz",
+  "AlignmentTarget": "EEG",
+  "AlignmentAxis": "time",
+  "NumSamples": 51234,
+  "StartTime": 0.0,
+  "StartTimeUnit": "s",
+  "MissingValueEncoding": "NaN",
+  "ValueRange": {
+    "Min": 0.0,
+    "Max": 1.24
+  },
+  "Source": {
+    "Modality": "audio",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_audio.wav"
+    ],
+    "InputSamplingFrequency": 16000.0,
+    "InputSamplingFrequencyUnit": "Hz",
+    "InputTimeBase": "seconds"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": "voxatlas",
+    "ExtractionLibraryVersion": "<fill_at_generation_time>",
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "Speech envelope extraction",
+    "AlgorithmReference": "voxatlas.features.acoustic.envelope.oganian.OganianEnvelope",
+    "Parameters": {
+      "EnvelopeVariant": "oganian",
+      "FrameLengthSeconds": 0.025,
+      "FrameStepSeconds": 0.01,
+      "SmoothingFrames": 7,
+      "PeakThreshold": 0.1
+    },
+    "Preprocessing": [
+      "Waveform converted to mono if needed."
+    ],
+    "Postprocessing": [
+      "Linearly resampled to the EEG sampling frequency.",
+      "Final array length matched exactly to EEG sample count."
+    ],
+    "Resampling": {
+      "Performed": true,
+      "OriginalSamplingFrequency": 100.0,
+      "OriginalSamplingFrequencyUnit": "Hz",
+      "TargetSamplingFrequency": 512.0,
+      "TargetSamplingFrequencyUnit": "Hz",
+      "Method": "linear"
+    },
+    "Alignment": {
+      "Target": "EEG",
+      "Axis": "time",
+      "Strategy": "exact_length_match",
+      "EEGSampleCount": 51234
+    }
+  },
+  "QualityControl": {
+    "ExactEEGSampleMatch": true,
+    "FiniteValueRatio": 1.0,
+    "NumNaN": 0,
+    "NumInf": 0,
+    "SummaryStatistics": {
+      "Mean": 0.24,
+      "Std": 0.11,
+      "Median": 0.22
+    }
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-envelope_feature.npy",
+    "Format": "NumPy .npy"
+  },
+  "Notes": [
+    "Use a more specific label if multiple envelope variants are eventually published."
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "FeatureName": "word_features",
+  "FeatureLabel": "Word-level features",
+  "FeatureType": "event",
+  "Description": "Word-level event table with timing, lexical labels, POS tags, and mapping fields for separately stored language-model features.",
+  "TimeBase": "seconds_from_run_onset",
+  "Delimiter": "tab",
+  "RowDefinition": "One row represents one spoken word token aligned to the run timeline.",
+  "Columns": {
+    "onset": {
+      "Description": "Word onset time relative to run onset.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "duration": {
+      "Description": "Word duration.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "speaker": {
+      "Description": "Speaker identifier for the token.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "A",
+        "B"
+      ],
+      "MissingValues": "n/a"
+    },
+    "word": {
+      "Description": "Surface-form token as represented in the annotation source.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "normalized_word": {
+      "Description": "Normalized token used for downstream lexical or language-model mapping.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "word_index": {
+      "Description": "One-based word index within speaker stream or source transcript, depending on the documented method.",
+      "Units": null,
+      "DType": "integer",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "pos": {
+      "Description": "Part-of-speech tag for the word token. POS is documented here rather than as a standalone derivative.",
+      "Units": null,
+      "DType": "string",
+      "Levels": "Document the tagset used by the generator.",
+      "MissingValues": "n/a"
+    },
+    "surprisal": {
+      "Description": "Optional scalar surprisal value associated with the token.",
+      "Units": "bits_or_nats_as_documented",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "entropy": {
+      "Description": "Optional predictive entropy value associated with the token.",
+      "Units": "bits_or_nats_as_documented",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "lm_token_id": {
+      "Description": "Stable token identifier used to join this row to separately stored language-model vectors or scalar outputs.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "lm_vector_row": {
+      "Description": "Row index into a separate array file if high-dimensional language-model vectors are released.",
+      "Units": "0_based_index",
+      "DType": "integer",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "alignment_status": {
+      "Description": "Status flag describing whether the token was aligned and mapped successfully.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "ok",
+        "approximate",
+        "unmatched"
+      ],
+      "MissingValues": "n/a"
+    },
+    "source_interval_id": {
+      "Description": "Identifier from the source annotation tier or transcript alignment.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    }
+  },
+  "Source": {
+    "Modality": "annotation",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_words.TextGrid",
+      "sub-01_ses-01_task-conversation_run-01_transcript.json"
+    ],
+    "InputTimeBase": "seconds",
+    "AnnotationSource": "Forced alignment plus transcript-derived lexical annotation"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": null,
+    "ExtractionLibraryVersion": null,
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "Word-level alignment and lexical annotation merge",
+    "AlgorithmReference": null,
+    "Parameters": {
+      "POSTagSet": "<document_tagset_here>",
+      "SurprisalUnits": "<bits_or_nats>",
+      "EmbeddingStorageRule": "Vectors are stored outside the TSV; this table stores only mapping fields."
+    },
+    "Preprocessing": [
+      "Transcript tokens normalized before lexical merge."
+    ],
+    "Postprocessing": [
+      "Rows sorted by onset within run."
+    ],
+    "FilteringRules": [],
+    "AggregationRules": []
+  },
+  "QualityControl": {
+    "NumRows": 4,
+    "NumMissingValues": 2,
+    "ExcludedCount": 0,
+    "CategoryCounts": {
+      "alignment_status": {
+        "ok": 4
+      }
+    },
+    "TimingSorted": true
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-words_features.tsv",
+    "Format": "TSV"
+  },
+  "Notes": [
+    "This example intentionally keeps language-model embeddings out of the TSV and stores only mapping fields."
+  ]
+}

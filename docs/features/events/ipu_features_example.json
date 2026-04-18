@@ -1,0 +1,145 @@
+{
+  "FeatureName": "ipu_features",
+  "FeatureLabel": "Inter-pausal unit features",
+  "FeatureType": "event",
+  "Description": "Interval table in which each row represents one IPU derived from token-level annotations.",
+  "TimeBase": "seconds_from_run_onset",
+  "Delimiter": "tab",
+  "RowDefinition": "One row represents one inter-pausal unit.",
+  "Columns": {
+    "onset": {
+      "Description": "IPU onset time relative to run onset.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "duration": {
+      "Description": "IPU duration.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "speaker": {
+      "Description": "Speaker identifier for the IPU.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "A",
+        "B"
+      ],
+      "MissingValues": "n/a"
+    },
+    "ipu_id": {
+      "Description": "Stable identifier for the IPU row.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "token_count": {
+      "Description": "Number of speech-like tokens assigned to the IPU.",
+      "Units": "count",
+      "DType": "integer",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "includes_filled_pause": {
+      "Description": "Whether the IPU includes at least one filled-pause token under the documented inclusion rules.",
+      "Units": "boolean",
+      "DType": "boolean",
+      "Levels": [
+        "true",
+        "false"
+      ],
+      "MissingValues": "n/a"
+    },
+    "prev_silence_duration": {
+      "Description": "Duration of the preceding silence interval.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "next_silence_duration": {
+      "Description": "Duration of the following silence interval.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "source_tier": {
+      "Description": "Name of the annotation tier used to derive IPUs.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "source_interval_id": {
+      "Description": "Identifier from the source interval or derived interval tier.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    }
+  },
+  "Source": {
+    "Modality": "annotation",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_tokens.TextGrid"
+    ],
+    "InputTimeBase": "seconds",
+    "AnnotationSource": "IPUs derived from token intervals"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": null,
+    "ExtractionLibraryVersion": null,
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "IPU segmentation from token intervals",
+    "AlgorithmReference": "src/hyper/annotations/palign_core.py",
+    "Parameters": {
+      "MinSilenceSeconds": 0.2,
+      "MinIPUDurationSeconds": 0.01,
+      "IncludeLaughter": false,
+      "IncludeNoise": false,
+      "IncludeFilledPause": true
+    },
+    "Preprocessing": [
+      "Token intervals sorted by time."
+    ],
+    "Postprocessing": [
+      "Short pauses below the configured silence threshold may be merged into a single IPU."
+    ],
+    "FilteringRules": [
+      "Malformed or non-positive intervals are excluded."
+    ],
+    "AggregationRules": [
+      "Consecutive speech-like tokens are grouped into one IPU unless separated by sufficient silence."
+    ]
+  },
+  "QualityControl": {
+    "NumRows": 3,
+    "NumMissingValues": 0,
+    "ExcludedCount": 0,
+    "CategoryCounts": {
+      "includes_filled_pause": {
+        "true": 1,
+        "false": 2
+      }
+    },
+    "TimingSorted": true
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-ipus_features.tsv",
+    "Format": "TSV"
+  },
+  "Notes": [
+    "This example follows the IPU logic already present in the repository without claiming a finalized publication schema."
+  ]
+}

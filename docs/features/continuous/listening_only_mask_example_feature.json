@@ -1,0 +1,92 @@
+{
+  "FeatureName": "listening_only_mask",
+  "FeatureLabel": "Listening-only mask",
+  "FeatureType": "continuous",
+  "Description": "Binary samplewise mask indicating samples where the target participant is not speaking while the partner is speaking.",
+  "Units": "0/1",
+  "Shape": [
+    51234
+  ],
+  "DType": "uint8",
+  "SamplingFrequency": 512.0,
+  "SamplingFrequencyUnit": "Hz",
+  "AlignmentTarget": "EEG",
+  "AlignmentAxis": "time",
+  "NumSamples": 51234,
+  "StartTime": 0.0,
+  "StartTimeUnit": "s",
+  "MissingValueEncoding": "none",
+  "ValueRange": {
+    "Min": 0,
+    "Max": 1
+  },
+  "Source": {
+    "Modality": "annotation",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_speaker-self_annotations.tsv",
+      "sub-01_ses-01_task-conversation_run-01_speaker-partner_annotations.tsv"
+    ],
+    "InputSamplingFrequency": null,
+    "InputSamplingFrequencyUnit": "Hz",
+    "InputTimeBase": "seconds"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": null,
+    "ExtractionLibraryVersion": null,
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "Interval-to-sample projection",
+    "AlgorithmReference": null,
+    "Parameters": {
+      "MaskValueSemantics": {
+        "0": "Target participant not in listening-only state.",
+        "1": "Partner speaking while target participant not speaking."
+      },
+      "SpeakerReferenceFrame": "target_participant",
+      "BoundaryRule": "Sample is 1 if its timestamp falls within partner speech intervals and outside target speech intervals."
+    },
+    "Preprocessing": [
+      "Speech intervals normalized to a common run time base."
+    ],
+    "Postprocessing": [
+      "Projected to EEG sample space.",
+      "Final array length matched exactly to EEG sample count."
+    ],
+    "Resampling": {
+      "Performed": true,
+      "OriginalSamplingFrequency": null,
+      "OriginalSamplingFrequencyUnit": "Hz",
+      "TargetSamplingFrequency": 512.0,
+      "TargetSamplingFrequencyUnit": "Hz",
+      "Method": "interval_membership_projection"
+    },
+    "Alignment": {
+      "Target": "EEG",
+      "Axis": "time",
+      "Strategy": "exact_length_match",
+      "EEGSampleCount": 51234
+    }
+  },
+  "QualityControl": {
+    "ExactEEGSampleMatch": true,
+    "FiniteValueRatio": 1.0,
+    "NumNaN": 0,
+    "NumInf": 0,
+    "SummaryStatistics": {
+      "Mean": 0.31,
+      "Std": 0.46,
+      "Median": 0.0
+    }
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-listeningOnlyMask_feature.npy",
+    "Format": "NumPy .npy"
+  },
+  "Notes": [
+    "This template assumes a self-versus-partner frame of reference; document any other reference frame explicitly."
+  ]
+}

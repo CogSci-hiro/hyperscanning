@@ -1,0 +1,91 @@
+{
+  "FeatureName": "f0",
+  "FeatureLabel": "Fundamental frequency",
+  "FeatureType": "continuous",
+  "Description": "Continuous F0 contour aligned samplewise to the EEG time base.",
+  "Units": "Hz",
+  "Shape": [
+    51234
+  ],
+  "DType": "float32",
+  "SamplingFrequency": 512.0,
+  "SamplingFrequencyUnit": "Hz",
+  "AlignmentTarget": "EEG",
+  "AlignmentAxis": "time",
+  "NumSamples": 51234,
+  "StartTime": 0.0,
+  "StartTimeUnit": "s",
+  "MissingValueEncoding": "NaN",
+  "ValueRange": {
+    "Min": 78.4,
+    "Max": 286.4
+  },
+  "Source": {
+    "Modality": "audio",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_audio.wav"
+    ],
+    "InputSamplingFrequency": 16000.0,
+    "InputSamplingFrequencyUnit": "Hz",
+    "InputTimeBase": "seconds"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": "voxatlas",
+    "ExtractionLibraryVersion": "<fill_at_generation_time>",
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "Fundamental frequency tracking",
+    "AlgorithmReference": "voxatlas.features.acoustic.pitch.f0.F0Extractor",
+    "Parameters": {
+      "F0FloorHz": 75.0,
+      "F0CeilingHz": 500.0,
+      "FrameLengthSeconds": 0.04,
+      "FrameStepSeconds": 0.01,
+      "UnvoicedHandling": "NaN",
+      "FillStrategyBeforeEEGAlignment": "nan",
+      "PublishedArrayRepresents": "raw_unvoiced_nan"
+    },
+    "Preprocessing": [
+      "Waveform converted to mono if needed."
+    ],
+    "Postprocessing": [
+      "Aligned to EEG sample space after explicit treatment of unvoiced frames."
+    ],
+    "Resampling": {
+      "Performed": true,
+      "OriginalSamplingFrequency": 100.0,
+      "OriginalSamplingFrequencyUnit": "Hz",
+      "TargetSamplingFrequency": 512.0,
+      "TargetSamplingFrequencyUnit": "Hz",
+      "Method": "nearest"
+    },
+    "Alignment": {
+      "Target": "EEG",
+      "Axis": "time",
+      "Strategy": "exact_length_match",
+      "EEGSampleCount": 51234
+    }
+  },
+  "QualityControl": {
+    "ExactEEGSampleMatch": true,
+    "FiniteValueRatio": 0.73,
+    "NumNaN": 13831,
+    "NumInf": 0,
+    "SummaryStatistics": {
+      "Mean": 162.8,
+      "Std": 41.3,
+      "Median": 158.9
+    }
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-f0_feature.npy",
+    "Format": "NumPy .npy"
+  },
+  "Notes": [
+    "If an interpolated or zero-filled modeling version is also shared, publish it as a distinct derivative with its own sidecar."
+  ]
+}

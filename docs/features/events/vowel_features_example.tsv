@@ -1,0 +1,5 @@
+onset	duration	speaker	vowel_label	vowel_set	f1_median_hz	f2_median_hz	source_interval_id	extraction_status	notes
+0.49	0.05	A	eh	ARPABET	530.4	1842.7	vow_0001	ok	n/a
+0.64	0.08	A	ay	ARPABET	612.2	2114.3	vow_0002	ok	n/a
+1.82	0.02	B	ae	ARPABET	n/a	n/a	vow_0101	too_short	Interval shorter than minimum duration threshold.
+2.14	0.09	B	aa	ARPABET	n/a	n/a	vow_0102	failed	No stable F1/F2 estimates available for this vowel interval.

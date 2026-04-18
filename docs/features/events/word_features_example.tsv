@@ -1,0 +1,5 @@
+onset	duration	speaker	word	normalized_word	word_index	pos	surprisal	entropy	lm_token_id	lm_vector_row	alignment_status	source_interval_id
+0.42	0.18	A	Well	well	1	INTJ	3.17	1.24	tok_0001	0	ok	word_0001
+0.64	0.22	A	I	I	2	PRON	1.08	0.44	tok_0002	1	ok	word_0002
+0.91	0.35	A	guess	guess	3	VERB	4.62	1.81	tok_0003	2	ok	word_0003
+1.74	0.28	B	yeah	yeah	1	INTJ	n/a	n/a	tok_0101	0	ok	word_0101

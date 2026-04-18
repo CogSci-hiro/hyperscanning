@@ -1,0 +1,90 @@
+{
+  "FeatureName": "silence_mask",
+  "FeatureLabel": "Silence mask",
+  "FeatureType": "continuous",
+  "Description": "Binary samplewise mask indicating samples where neither speaker is annotated as speaking.",
+  "Units": "0/1",
+  "Shape": [
+    51234
+  ],
+  "DType": "uint8",
+  "SamplingFrequency": 512.0,
+  "SamplingFrequencyUnit": "Hz",
+  "AlignmentTarget": "EEG",
+  "AlignmentAxis": "time",
+  "NumSamples": 51234,
+  "StartTime": 0.0,
+  "StartTimeUnit": "s",
+  "MissingValueEncoding": "none",
+  "ValueRange": {
+    "Min": 0,
+    "Max": 1
+  },
+  "Source": {
+    "Modality": "annotation",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_speaker-self_annotations.tsv",
+      "sub-01_ses-01_task-conversation_run-01_speaker-partner_annotations.tsv"
+    ],
+    "InputSamplingFrequency": null,
+    "InputSamplingFrequencyUnit": "Hz",
+    "InputTimeBase": "seconds"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": null,
+    "ExtractionLibraryVersion": null,
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "Complement of joint speech activity",
+    "AlgorithmReference": null,
+    "Parameters": {
+      "MaskValueSemantics": {
+        "0": "At least one speaker is speaking.",
+        "1": "Neither speaker is speaking."
+      }
+    },
+    "Preprocessing": [
+      "Speech intervals for both speakers normalized to a common run time base."
+    ],
+    "Postprocessing": [
+      "Projected to EEG sample space.",
+      "Final array length matched exactly to EEG sample count."
+    ],
+    "Resampling": {
+      "Performed": true,
+      "OriginalSamplingFrequency": null,
+      "OriginalSamplingFrequencyUnit": "Hz",
+      "TargetSamplingFrequency": 512.0,
+      "TargetSamplingFrequencyUnit": "Hz",
+      "Method": "interval_membership_projection"
+    },
+    "Alignment": {
+      "Target": "EEG",
+      "Axis": "time",
+      "Strategy": "exact_length_match",
+      "EEGSampleCount": 51234
+    }
+  },
+  "QualityControl": {
+    "ExactEEGSampleMatch": true,
+    "FiniteValueRatio": 1.0,
+    "NumNaN": 0,
+    "NumInf": 0,
+    "SummaryStatistics": {
+      "Mean": 0.19,
+      "Std": 0.39,
+      "Median": 0.0
+    }
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-silenceMask_feature.npy",
+    "Format": "NumPy .npy"
+  },
+  "Notes": [
+    "If the project distinguishes acoustic silence from annotation-defined silence, document that distinction explicitly."
+  ]
+}

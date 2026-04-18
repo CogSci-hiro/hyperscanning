@@ -1,0 +1,147 @@
+{
+  "FeatureName": "phoneme_features",
+  "FeatureLabel": "Phoneme-level features",
+  "FeatureType": "event",
+  "Description": "Phoneme-level event table with interval timing and label conventions documented explicitly.",
+  "TimeBase": "seconds_from_run_onset",
+  "Delimiter": "tab",
+  "RowDefinition": "One row represents one aligned phoneme interval.",
+  "Columns": {
+    "onset": {
+      "Description": "Phoneme onset time relative to run onset.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "duration": {
+      "Description": "Phoneme duration.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "speaker": {
+      "Description": "Speaker identifier for the phoneme.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "A",
+        "B"
+      ],
+      "MissingValues": "n/a"
+    },
+    "phoneme_label": {
+      "Description": "Phoneme label from the documented label convention.",
+      "Units": null,
+      "DType": "string",
+      "Levels": "Document the exact inventory used by the aligner or annotation source.",
+      "MissingValues": "n/a"
+    },
+    "phoneme_set": {
+      "Description": "Name of the label convention used for phoneme_label.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "ARPABET",
+        "IPA",
+        "SAMPA",
+        "other_documented_set"
+      ],
+      "MissingValues": "n/a"
+    },
+    "word_index": {
+      "Description": "Index of the parent word within the documented token stream.",
+      "Units": null,
+      "DType": "integer",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "phoneme_index_in_word": {
+      "Description": "One-based index of the phoneme within its parent word.",
+      "Units": null,
+      "DType": "integer",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "stress": {
+      "Description": "Stress annotation when available.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "0",
+        "1",
+        "2",
+        "n/a"
+      ],
+      "MissingValues": "n/a"
+    },
+    "alignment_status": {
+      "Description": "Status flag indicating whether the phoneme boundary is considered valid.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "ok",
+        "approximate",
+        "unmatched"
+      ],
+      "MissingValues": "n/a"
+    },
+    "source_interval_id": {
+      "Description": "Identifier from the source phoneme interval tier.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    }
+  },
+  "Source": {
+    "Modality": "annotation",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_phonemes.TextGrid"
+    ],
+    "InputTimeBase": "seconds",
+    "AnnotationSource": "Forced alignment phoneme tier"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": null,
+    "ExtractionLibraryVersion": null,
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "Phoneme interval export",
+    "AlgorithmReference": null,
+    "Parameters": {
+      "PhonemeLabelConvention": "ARPABET"
+    },
+    "Preprocessing": [
+      "Rows filtered to non-empty phoneme labels."
+    ],
+    "Postprocessing": [
+      "Rows sorted by onset within run."
+    ],
+    "FilteringRules": [],
+    "AggregationRules": []
+  },
+  "QualityControl": {
+    "NumRows": 4,
+    "NumMissingValues": 2,
+    "ExcludedCount": 0,
+    "CategoryCounts": {
+      "alignment_status": {
+        "ok": 4
+      }
+    },
+    "TimingSorted": true
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-phonemes_features.tsv",
+    "Format": "TSV"
+  },
+  "Notes": [
+    "If vowel rows are derived from this table, keep the vowel derivative as a separate event-level file rather than overloading this table."
+  ]
+}

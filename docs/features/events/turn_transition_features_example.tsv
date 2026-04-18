@@ -1,0 +1,4 @@
+onset	duration	anchor_speaker	next_speaker	anchor_ipu_id	next_ipu_id	anchor_offset	next_onset	gap_or_overlap_s	latency_from_anchor_offset_s	transition_type	notes
+1.25	0.0	A	B	ipu_0001	ipu_0101	1.25	1.41	0.16	0.16	gap	n/a
+2.80	0.0	B	A	ipu_0102	ipu_0003	2.80	2.74	-0.06	-0.06	overlap	Negative values indicate that the next speaker starts before the anchor speaker ends.
+4.10	0.0	A	A	ipu_0004	ipu_0005	4.10	4.22	0.12	0.12	within_speaker_pause	Same speaker continues after a brief pause.

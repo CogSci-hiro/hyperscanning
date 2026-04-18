@@ -1,0 +1,154 @@
+{
+  "FeatureName": "vowel_features",
+  "FeatureLabel": "Vowel-level features with median formants",
+  "FeatureType": "event",
+  "Description": "Vowel-interval event table including median F1 and F2 values when extraction succeeds.",
+  "TimeBase": "seconds_from_run_onset",
+  "Delimiter": "tab",
+  "RowDefinition": "One row represents one vowel interval.",
+  "Columns": {
+    "onset": {
+      "Description": "Vowel onset time relative to run onset.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "duration": {
+      "Description": "Vowel interval duration.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "speaker": {
+      "Description": "Speaker identifier for the vowel interval.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "A",
+        "B"
+      ],
+      "MissingValues": "n/a"
+    },
+    "vowel_label": {
+      "Description": "Vowel label from the documented phoneme or vowel inventory.",
+      "Units": null,
+      "DType": "string",
+      "Levels": "Document the inventory used by the source aligner or annotation tier.",
+      "MissingValues": "n/a"
+    },
+    "vowel_set": {
+      "Description": "Name of the vowel label convention used for vowel_label.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "ARPABET",
+        "IPA",
+        "SAMPA",
+        "other_documented_set"
+      ],
+      "MissingValues": "n/a"
+    },
+    "f1_median_hz": {
+      "Description": "Median F1 estimate within the vowel interval.",
+      "Units": "Hz",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "f2_median_hz": {
+      "Description": "Median F2 estimate within the vowel interval.",
+      "Units": "Hz",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "source_interval_id": {
+      "Description": "Identifier from the source vowel or phoneme interval tier.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "extraction_status": {
+      "Description": "Status of formant extraction for the row.",
+      "Units": null,
+      "DType": "string",
+      "Levels": [
+        "ok",
+        "too_short",
+        "failed"
+      ],
+      "MissingValues": "n/a"
+    },
+    "notes": {
+      "Description": "Free-text note explaining extraction failure or caveats for the row.",
+      "Units": null,
+      "DType": "string",
+      "Levels": null,
+      "MissingValues": "n/a"
+    }
+  },
+  "Source": {
+    "Modality": "audio_derived",
+    "InputFiles": [
+      "sub-01_ses-01_task-conversation_run-01_audio.wav",
+      "sub-01_ses-01_task-conversation_run-01_phonemes.TextGrid"
+    ],
+    "InputTimeBase": "seconds",
+    "AnnotationSource": "Vowel intervals derived from a TextGrid tier and acoustic formants estimated from audio"
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": "voxatlas",
+    "ExtractionLibraryVersion": "<fill_at_generation_time>",
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": "Vowel-centered F1/F2 extraction",
+    "AlgorithmReference": "voxatlas.phonology.formant_utils.compute_formant_tracks",
+    "Parameters": {
+      "FrameLengthSeconds": 0.025,
+      "FrameStepSeconds": 0.01,
+      "LPCOrder": 10,
+      "MaxFormantHz": 5500.0,
+      "MinIntervalDurationSeconds": 0.03,
+      "UseParselmouth": true
+    },
+    "Preprocessing": [
+      "Rows restricted to vowel intervals from the source tier."
+    ],
+    "Postprocessing": [
+      "Median F1 and F2 computed within each interval when stable tracks are available."
+    ],
+    "FilteringRules": [
+      "Intervals shorter than the documented minimum duration receive extraction_status = too_short."
+    ],
+    "AggregationRules": [
+      "F1 and F2 are medians across valid formant frames within each vowel interval."
+    ]
+  },
+  "QualityControl": {
+    "NumRows": 4,
+    "NumMissingValues": 5,
+    "ExcludedCount": 0,
+    "CategoryCounts": {
+      "extraction_status": {
+        "ok": 2,
+        "too_short": 1,
+        "failed": 1
+      }
+    },
+    "TimingSorted": true
+  },
+  "FeatureFile": {
+    "Path": "sub-01_ses-01_task-conversation_run-01_desc-vowels_features.tsv",
+    "Format": "TSV"
+  },
+  "Notes": [
+    "This template is intentionally event-level. Median formants should not be documented as continuous arrays by default."
+  ]
+}

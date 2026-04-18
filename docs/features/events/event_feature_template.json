@@ -1,0 +1,60 @@
+{
+  "FeatureName": "<feature_name>",
+  "FeatureLabel": "<human_readable_label>",
+  "FeatureType": "event",
+  "Description": "<brief description of the event-like feature table>",
+  "TimeBase": "seconds_from_run_onset",
+  "Delimiter": "tab",
+  "RowDefinition": "<what one row represents>",
+  "Columns": {
+    "onset": {
+      "Description": "Event onset time relative to run onset.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    },
+    "duration": {
+      "Description": "Event duration. Use 0.0 for point events if needed.",
+      "Units": "s",
+      "DType": "float",
+      "Levels": null,
+      "MissingValues": "n/a"
+    }
+  },
+  "Source": {
+    "Modality": "<annotation_or_audio_derived>",
+    "InputFiles": [],
+    "InputTimeBase": "seconds",
+    "AnnotationSource": null
+  },
+  "Generation": {
+    "SoftwareName": "hyperscanning",
+    "SoftwareVersion": "<fill_at_generation_time>",
+    "CodeURL": null,
+    "ExtractionLibrary": null,
+    "ExtractionLibraryVersion": null,
+    "ComputationDate": null
+  },
+  "Method": {
+    "Algorithm": null,
+    "AlgorithmReference": null,
+    "Parameters": {},
+    "Preprocessing": [],
+    "Postprocessing": [],
+    "FilteringRules": [],
+    "AggregationRules": []
+  },
+  "QualityControl": {
+    "NumRows": 0,
+    "NumMissingValues": 0,
+    "ExcludedCount": 0,
+    "CategoryCounts": {},
+    "TimingSorted": null
+  },
+  "FeatureFile": {
+    "Path": null,
+    "Format": "TSV"
+  },
+  "Notes": []
+}
