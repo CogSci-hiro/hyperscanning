@@ -18,36 +18,56 @@ def add_subparser(subparsers: Any) -> None:
     )
     parser.add_argument("--config", type=Path, required=True, help="Path to config YAML.")
     parser.add_argument("--audio", type=Path, required=True, help="Input speech WAV file.")
-    parser.add_argument("--eeg-sfreq", type=float, required=True, help="Target EEG sampling rate in Hertz.")
     parser.add_argument("--eeg-samples", type=int, required=True, help="Target EEG sample count.")
     parser.add_argument("--out", type=Path, required=True, help="Output NumPy array path.")
     parser.add_argument("--out-sidecar", type=Path, required=True, help="Output JSON sidecar path.")
-    parser.add_argument("--fmin", type=float, default=75.0, help="Minimum admissible F0 in Hertz.")
-    parser.add_argument("--fmax", type=float, default=500.0, help="Maximum admissible F0 in Hertz.")
-    parser.add_argument("--frame-length", type=float, default=0.040, help="Pitch frame length in seconds.")
-    parser.add_argument("--frame-step", type=float, default=0.010, help="Pitch frame step in seconds.")
+    parser.add_argument("--fmin", type=float, default=None, help="Minimum admissible F0 in Hertz.")
+    parser.add_argument("--fmax", type=float, default=None, help="Maximum admissible F0 in Hertz.")
+    parser.add_argument("--frame-length", type=float, default=None, help="Pitch frame length in seconds.")
+    parser.add_argument("--frame-step", type=float, default=None, help="Pitch frame step in seconds.")
     parser.add_argument(
         "--fill-strategy",
         choices=["nan", "zero", "linear", "forward_fill"],
-        default="linear",
+        default=None,
         help="How to prepare unvoiced regions for EEG-aligned TRF regressors.",
     )
 
 
 def run(args: argparse.Namespace, cfg) -> None:
     """Execute the `acoustic-pitch` command."""
-    del cfg
+    features_cfg = getattr(cfg, "raw", {}).get("features", {})
+    feature_cfg = features_cfg.get("pitch", {})
+    continuous_cfg = features_cfg.get("continuous", {})
+    defaults = PitchExtractionConfig()
+    eeg_sfreq_hz = continuous_cfg.get("sfreq_hz")
+    if eeg_sfreq_hz is None:
+        raise ValueError("Continuous feature EEG sampling rate must be set in features.continuous.sfreq_hz.")
     run_pitch_pipeline(
         audio_path=args.audio,
-        eeg_sampling_rate_hz=float(args.eeg_sfreq),
+        eeg_sampling_rate_hz=float(eeg_sfreq_hz),
         eeg_sample_count=int(args.eeg_samples),
         output_values_path=args.out,
         output_sidecar_path=args.out_sidecar,
         config=PitchExtractionConfig(
-            fmin_hz=float(args.fmin),
-            fmax_hz=float(args.fmax),
-            frame_length_seconds=float(args.frame_length),
-            frame_step_seconds=float(args.frame_step),
-            fill_strategy=str(args.fill_strategy),
+            fmin_hz=float(args.fmin if args.fmin is not None else feature_cfg.get("fmin_hz", defaults.fmin_hz)),
+            fmax_hz=float(args.fmax if args.fmax is not None else feature_cfg.get("fmax_hz", defaults.fmax_hz)),
+            frame_length_seconds=float(
+                args.frame_length if args.frame_length is not None else feature_cfg.get(
+                    "frame_length_seconds",
+                    defaults.frame_length_seconds,
+                )
+            ),
+            frame_step_seconds=float(
+                args.frame_step if args.frame_step is not None else feature_cfg.get(
+                    "frame_step_seconds",
+                    defaults.frame_step_seconds,
+                )
+            ),
+            fill_strategy=str(
+                args.fill_strategy if args.fill_strategy is not None else feature_cfg.get(
+                    "fill_strategy",
+                    defaults.fill_strategy,
+                )
+            ),
         ),
     )

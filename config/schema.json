@@ -19,6 +19,7 @@
     "runs": {"type": "object", "additionalProperties": true},
     "eeg": {"type": "object", "additionalProperties": true},
     "annotations": {"type": "object", "additionalProperties": true},
+    "features": {"type": "object", "additionalProperties": true},
     "preprocessing": {
       "type": "object",
       "properties": {

@@ -125,6 +125,11 @@ def load_raw_project_config(config_path: Path) -> Dict[str, Any]:
         external = _load_yaml_mapping(preprocessing_path)
         merged = _merge_named_sections(external, merged, ("preprocessing",))
 
+    features_path = config_path.with_name("features.yaml")
+    if features_path.exists():
+        external = _load_yaml_mapping(features_path)
+        merged = _merge_named_sections(external, merged, ("features",))
+
     paths_path = config_path.with_name("paths.yaml")
     if paths_path.exists():
         external = _load_yaml_mapping(paths_path)

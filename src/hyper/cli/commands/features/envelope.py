@@ -18,29 +18,54 @@ def add_subparser(subparsers: Any) -> None:
     )
     parser.add_argument("--config", type=Path, required=True, help="Path to config YAML.")
     parser.add_argument("--audio", type=Path, required=True, help="Input speech WAV file.")
-    parser.add_argument("--eeg-sfreq", type=float, required=True, help="Target EEG sampling rate in Hertz.")
     parser.add_argument("--eeg-samples", type=int, required=True, help="Target EEG sample count.")
     parser.add_argument("--out", type=Path, required=True, help="Output NumPy array path.")
     parser.add_argument("--out-sidecar", type=Path, required=True, help="Output JSON sidecar path.")
-    parser.add_argument("--frame-length", type=float, default=0.025, help="Envelope frame length in seconds.")
-    parser.add_argument("--frame-step", type=float, default=0.010, help="Envelope frame step in seconds.")
-    parser.add_argument("--smoothing", type=int, default=7, help="Envelope smoothing window in frames.")
-    parser.add_argument("--peak-threshold", type=float, default=0.1, help="VoxAtlas Oganian peak threshold.")
+    parser.add_argument("--frame-length", type=float, default=None, help="Envelope frame length in seconds.")
+    parser.add_argument("--frame-step", type=float, default=None, help="Envelope frame step in seconds.")
+    parser.add_argument("--smoothing", type=int, default=None, help="Envelope smoothing window in frames.")
+    parser.add_argument("--peak-threshold", type=float, default=None, help="VoxAtlas Oganian peak threshold.")
 
 
 def run(args: argparse.Namespace, cfg) -> None:
     """Execute the `acoustic-envelope` command."""
-    del cfg
+    features_cfg = getattr(cfg, "raw", {}).get("features", {})
+    feature_cfg = features_cfg.get("envelope", {})
+    continuous_cfg = features_cfg.get("continuous", {})
+    defaults = EnvelopeExtractionConfig()
+    eeg_sfreq_hz = continuous_cfg.get("sfreq_hz")
+    if eeg_sfreq_hz is None:
+        raise ValueError("Continuous feature EEG sampling rate must be set in features.continuous.sfreq_hz.")
     run_envelope_pipeline(
         audio_path=args.audio,
-        eeg_sampling_rate_hz=float(args.eeg_sfreq),
+        eeg_sampling_rate_hz=float(eeg_sfreq_hz),
         eeg_sample_count=int(args.eeg_samples),
         output_values_path=args.out,
         output_sidecar_path=args.out_sidecar,
         config=EnvelopeExtractionConfig(
-            frame_length_seconds=float(args.frame_length),
-            frame_step_seconds=float(args.frame_step),
-            smoothing_frames=int(args.smoothing),
-            peak_threshold=float(args.peak_threshold),
+            frame_length_seconds=float(
+                args.frame_length if args.frame_length is not None else feature_cfg.get(
+                    "frame_length_seconds",
+                    defaults.frame_length_seconds,
+                )
+            ),
+            frame_step_seconds=float(
+                args.frame_step if args.frame_step is not None else feature_cfg.get(
+                    "frame_step_seconds",
+                    defaults.frame_step_seconds,
+                )
+            ),
+            smoothing_frames=int(
+                args.smoothing if args.smoothing is not None else feature_cfg.get(
+                    "smoothing_frames",
+                    defaults.smoothing_frames,
+                )
+            ),
+            peak_threshold=float(
+                args.peak_threshold if args.peak_threshold is not None else feature_cfg.get(
+                    "peak_threshold",
+                    defaults.peak_threshold,
+                )
+            ),
         ),
     )

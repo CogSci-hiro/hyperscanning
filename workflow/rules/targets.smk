@@ -1,8 +1,6 @@
 conda:
     CONDA_PY_ENV
 
-from pathlib import Path
-
 
 def _existing_subject_task_runs():
     combos = []
@@ -39,11 +37,6 @@ def _event_feature_targets(desc: str):
         targets.append(derived_path("features", "events", f"{stem}.tsv"))
         targets.append(derived_path("features", "events", f"{stem}.json"))
     return targets
-
-
-def _annotation_targets(annotation_set: str, pattern: str):
-    root = Path(config["paths"]["annotation_root"]) / annotation_set
-    return sorted(str(path) for path in root.glob(pattern))
 
 rule preprocessed_all:
     input:
@@ -155,17 +148,17 @@ rule f1_f2_all:
 
 rule phoneme_onsets_all:
     input:
-        _annotation_targets("palign_v1", "sub-*_run-*_palign.csv")
+        _event_feature_targets("phonemes")
 
 
 rule syllable_onsets_all:
     input:
-        _annotation_targets("syllable_v1", "sub-*_run-*_syllable.csv")
+        _event_feature_targets("syllables")
 
 
 rule token_onsets_all:
     input:
-        _annotation_targets("tokens_v1", "dyad-*_tokens.csv")
+        _event_feature_targets("tokens")
 
 
 rule epoch_all:

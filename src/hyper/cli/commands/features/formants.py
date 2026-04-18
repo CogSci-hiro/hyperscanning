@@ -25,21 +25,22 @@ def add_subparser(subparsers: Any) -> None:
     parser.add_argument("--speaker", type=str, default=None, help="Optional speaker label to store in the output table.")
     parser.add_argument("--language", type=str, default=None, help="Optional VoxAtlas phonology language code.")
     parser.add_argument("--resource-root", type=str, default=None, help="Optional VoxAtlas phonology resource root.")
-    parser.add_argument("--frame-length", type=float, default=0.025, help="Formant frame length in seconds.")
-    parser.add_argument("--frame-step", type=float, default=0.010, help="Formant frame step in seconds.")
-    parser.add_argument("--lpc-order", type=int, default=10, help="Fallback LPC order for formant tracking.")
-    parser.add_argument("--max-formant", type=float, default=5500.0, help="Maximum formant frequency in Hertz.")
+    parser.add_argument("--frame-length", type=float, default=None, help="Formant frame length in seconds.")
+    parser.add_argument("--frame-step", type=float, default=None, help="Formant frame step in seconds.")
+    parser.add_argument("--lpc-order", type=int, default=None, help="Fallback LPC order for formant tracking.")
+    parser.add_argument("--max-formant", type=float, default=None, help="Maximum formant frequency in Hertz.")
     parser.add_argument(
         "--min-duration",
         type=float,
-        default=0.030,
+        default=None,
         help="Minimum vowel interval duration in seconds required for extraction.",
     )
 
 
 def run(args: argparse.Namespace, cfg) -> None:
     """Execute the `acoustic-formants` command."""
-    del cfg
+    feature_cfg = getattr(cfg, "raw", {}).get("features", {}).get("formants", {})
+    defaults = FormantEventExtractionConfig()
     run_vowel_formant_pipeline(
         audio_path=args.audio,
         textgrid_path=args.textgrid,
@@ -48,12 +49,42 @@ def run(args: argparse.Namespace, cfg) -> None:
         output_sidecar_path=args.out_sidecar,
         speaker=args.speaker,
         config=FormantEventExtractionConfig(
-            language=args.language,
-            resource_root=args.resource_root,
-            frame_length_seconds=float(args.frame_length),
-            frame_step_seconds=float(args.frame_step),
-            lpc_order=int(args.lpc_order),
-            max_formant_hz=float(args.max_formant),
-            min_interval_duration_seconds=float(args.min_duration),
+            language=args.language if args.language is not None else feature_cfg.get("language", defaults.language),
+            resource_root=(
+                args.resource_root
+                if args.resource_root is not None
+                else feature_cfg.get("resource_root", defaults.resource_root)
+            ),
+            frame_length_seconds=float(
+                args.frame_length if args.frame_length is not None else feature_cfg.get(
+                    "frame_length_seconds",
+                    defaults.frame_length_seconds,
+                )
+            ),
+            frame_step_seconds=float(
+                args.frame_step if args.frame_step is not None else feature_cfg.get(
+                    "frame_step_seconds",
+                    defaults.frame_step_seconds,
+                )
+            ),
+            lpc_order=int(
+                args.lpc_order if args.lpc_order is not None else feature_cfg.get(
+                    "lpc_order",
+                    defaults.lpc_order,
+                )
+            ),
+            max_formant_hz=float(
+                args.max_formant if args.max_formant is not None else feature_cfg.get(
+                    "max_formant_hz",
+                    defaults.max_formant_hz,
+                )
+            ),
+            min_interval_duration_seconds=float(
+                args.min_duration if args.min_duration is not None else feature_cfg.get(
+                    "min_interval_duration_seconds",
+                    defaults.min_interval_duration_seconds,
+                )
+            ),
+            use_parselmouth=bool(feature_cfg.get("use_parselmouth", defaults.use_parselmouth)),
         ),
     )
