@@ -96,14 +96,40 @@ def _merge_path_sections(external: Mapping[str, Any], base: Mapping[str, Any]) -
     return merged
 
 
+def _merge_named_sections(external: Mapping[str, Any], base: Mapping[str, Any], section_names: tuple[str, ...]) -> Dict[str, Any]:
+    """Merge selected top-level mapping sections, with base values taking precedence."""
+    merged: Dict[str, Any] = dict(external)
+    for section_name in section_names:
+        external_section = external.get(section_name, {})
+        base_section = base.get(section_name, {})
+        if isinstance(external_section, Mapping) or isinstance(base_section, Mapping):
+            merged[section_name] = {
+                **(dict(external_section) if isinstance(external_section, Mapping) else {}),
+                **(dict(base_section) if isinstance(base_section, Mapping) else {}),
+            }
+    for key, value in base.items():
+        if key in section_names and key in merged:
+            continue
+        merged[key] = value
+    return merged
+
+
 def load_raw_project_config(config_path: Path) -> Dict[str, Any]:
-    """Load config YAML and merge an optional sibling `paths.yaml` file."""
+    """Load config YAML and merge optional sibling config fragments."""
+    config_path = Path(config_path)
     base = _load_yaml_mapping(config_path)
+    merged = dict(base)
+
+    preprocessing_path = config_path.with_name("preprocessing.yaml")
+    if preprocessing_path.exists():
+        external = _load_yaml_mapping(preprocessing_path)
+        merged = _merge_named_sections(external, merged, ("preprocessing",))
+
     paths_path = config_path.with_name("paths.yaml")
     if paths_path.exists():
         external = _load_yaml_mapping(paths_path)
-        return _merge_path_sections(external, base)
-    return base
+        merged = _merge_path_sections(external, merged)
+    return merged
 
 def load_project_config(config_path: Path) -> ProjectConfig:
     """
@@ -124,4 +150,4 @@ def load_project_config(config_path: Path) -> ProjectConfig:
         cfg = load_project_config(Path("config/config.yaml"))
         print(cfg.raw["project"]["name"])
     """
-    return ProjectConfig(raw=load_raw_project_config(config_path))
+    return ProjectConfig(raw=load_raw_project_config(Path(config_path)))

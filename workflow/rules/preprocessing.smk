@@ -26,7 +26,7 @@ rule downsample:
     params:
         config_path = CONFIG_PATH,
         sfreq=float(config["eeg"]["sfreq_hz"]),
-        target_sfreq=float(config["eeg"]["target_sfreq_hz"])
+        target_sfreq=float(config["preprocessing"]["downsample"]["sfreq_hz"])
     conda:
         CONDA_PY_ENV
     threads: 1
@@ -51,8 +51,8 @@ rule filter_raw:
     output:
         raw_filt=maybe_temp(derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"))
     params:
-        l_freq=float(config["filter"]["l_freq_hz"]),
-        h_freq=float(config["filter"]["h_freq_hz"])
+        l_freq=float(config["preprocessing"]["filter"]["l_freq_hz"]),
+        h_freq=float(config["preprocessing"]["filter"]["h_freq_hz"])
     conda:
         CONDA_PY_ENV
     threads: 1
@@ -76,7 +76,7 @@ rule filter_raw:
 rule ica_apply:
     input:
         raw_filt=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
-        ica=precomputed_ica_path("{subject}_task-{task}-ica.fif"),
+        ica=precomputed_ica_path(config["preprocessing"]["ica"]["path_pattern"]),
         config="config/config.yaml"
     output:
         raw_ica=maybe_temp(derived_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"))
@@ -111,7 +111,7 @@ rule interpolate:
             --config {input.config} \
             --in-fif {input.raw_ica} \
             --channels {input.channels} \
-            --method spline \
+            --method {config[preprocessing][interpolation][method]} \
             --out {output.raw_interp}
         """
 

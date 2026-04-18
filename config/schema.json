@@ -22,12 +22,66 @@
     "preprocessing": {
       "type": "object",
       "properties": {
+        "montage": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "on_missing": {"type": "string", "minLength": 1},
+            "match_case": {"type": "boolean"}
+          },
+          "additionalProperties": true
+        },
+        "downsample": {
+          "type": "object",
+          "properties": {
+            "sfreq_hz": {"type": "number", "exclusiveMinimum": 0}
+          },
+          "additionalProperties": true
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "l_freq_hz": {"type": "number"},
+            "h_freq_hz": {"type": "number"}
+          },
+          "additionalProperties": true
+        },
+        "ica": {
+          "type": "object",
+          "properties": {
+            "path_pattern": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": true
+        },
+        "interpolation": {
+          "type": "object",
+          "properties": {
+            "method": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": true
+        },
+        "rereference": {
+          "type": "object",
+          "properties": {
+            "method": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": true
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "save_intermediates": {"type": "boolean"}
+          },
+          "additionalProperties": true
+        },
+        "pipeline_order": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
         "save_intermediates": {"type": "boolean"}
       },
       "additionalProperties": true
     },
-    "interpolate": {"type": "object", "additionalProperties": true},
-    "filter": {"type": "object", "additionalProperties": true},
     "epochs": {"type": "object", "additionalProperties": true}
   },
   "additionalProperties": true

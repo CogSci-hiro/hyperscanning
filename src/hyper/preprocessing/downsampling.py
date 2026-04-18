@@ -169,6 +169,14 @@ def _get_montage_name(cfg: ProjectConfig) -> Optional[str]:
         if name is not None:
             print(name)
     """
+    preprocessing_cfg = cfg.raw.get("preprocessing", {})
+    if isinstance(preprocessing_cfg, dict):
+        montage_cfg = preprocessing_cfg.get("montage", {})
+        if isinstance(montage_cfg, dict):
+            montage = montage_cfg.get("name", None)
+            if montage is not None:
+                return str(montage)
+
     eeg_cfg = cfg.raw.get("eeg", {})
     montage = eeg_cfg.get("montage", None)
     if montage is None:

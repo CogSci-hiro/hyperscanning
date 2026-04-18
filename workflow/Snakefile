@@ -22,12 +22,26 @@ def _load_yaml_mapping(path: Path) -> dict:
     return data
 
 
+def _merge_mapping_sections(external: dict, base: dict, *, sections: tuple[str, ...]) -> dict:
+    merged = dict(external)
+    for section in sections:
+        merged[section] = {**dict(external.get(section, {})), **dict(base.get(section, {}))}
+    for key, value in base.items():
+        if key in sections:
+            continue
+        merged[key] = value
+    return merged
+
+
+_preprocessing_config_path = Path(CONFIG_PATH).with_name("preprocessing.yaml")
+if _preprocessing_config_path.exists():
+    _preprocessing_cfg = _load_yaml_mapping(_preprocessing_config_path)
+    config.update(_merge_mapping_sections(_preprocessing_cfg, config, sections=("preprocessing",)))
+
 _paths_config_path = Path(CONFIG_PATH).with_name("paths.yaml")
 if _paths_config_path.exists():
     _paths_cfg = _load_yaml_mapping(_paths_config_path)
-    _merged_paths = dict(_paths_cfg.get("paths", {}))
-    _merged_paths.update(dict(config.get("paths", {})))
-    config["paths"] = _merged_paths
+    config.update(_merge_mapping_sections(_paths_cfg, config, sections=("paths",)))
 
 # In Snakefile (global)
 wildcard_constraints:
@@ -39,6 +53,20 @@ wildcard_constraints:
 WORKFLOW_DIR = Path(workflow.basedir)
 CONDA_PY_ENV = str(WORKFLOW_DIR / "envs" / "python.yaml")
 HYPER_MODULE_CMD = "PYTHONPATH=src python -m hyper.cli.main"
+PREPROCESSING_PIPELINE_ORDER = list((config.get("preprocessing") or {}).get("pipeline_order", []))
+EXPECTED_PREPROCESSING_PIPELINE_ORDER = [
+    "separate_drop_channels",
+    "downsample",
+    "bandpass",
+    "apply_precomputed_ica",
+    "interpolate_bad_channels",
+    "rereference",
+]
+if PREPROCESSING_PIPELINE_ORDER and PREPROCESSING_PIPELINE_ORDER != EXPECTED_PREPROCESSING_PIPELINE_ORDER:
+    raise ValueError(
+        "Unsupported preprocessing.pipeline_order. "
+        f"Expected {EXPECTED_PREPROCESSING_PIPELINE_ORDER}, got {PREPROCESSING_PIPELINE_ORDER}"
+    )
 
 # This needs to come before because it contains discover_subjects()
 include: str(WORKFLOW_DIR / "rules" / "common.smk")

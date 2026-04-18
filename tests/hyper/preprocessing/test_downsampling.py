@@ -41,7 +41,7 @@ def test_downsample_edf_to_fif_applies_processing(monkeypatch, tmp_path: Path, d
     monkeypatch.setattr(mod.mne, "find_events", lambda raw: np.array([[100, 0, 1]]))
     monkeypatch.setattr(mod.mne.channels, "make_standard_montage", lambda name: f"montage:{name}")
 
-    cfg = ProjectConfig(raw={"eeg": {"montage": "biosemi64"}})
+    cfg = ProjectConfig(raw={"preprocessing": {"montage": {"name": "biosemi64"}}})
     mod.downsample_edf_to_fif(
         input_edf_path=tmp_path / "in.edf",
         channels_tsv_path=channels_path,
@@ -74,7 +74,7 @@ def test_downsample_drops_non_eeg_channels_after_applying_bids_types(monkeypatch
     monkeypatch.setattr(mod.mne, "find_events", lambda raw: np.array([[100, 0, 1]]))
     monkeypatch.setattr(mod.mne.channels, "make_standard_montage", lambda name: f"montage:{name}")
 
-    cfg = ProjectConfig(raw={"eeg": {"montage": "biosemi64"}})
+    cfg = ProjectConfig(raw={"preprocessing": {"montage": {"name": "biosemi64"}}})
     mod.downsample_edf_to_fif(
         input_edf_path=tmp_path / "in.edf",
         channels_tsv_path=channels_path,
@@ -120,7 +120,7 @@ def test_downsample_skips_resample_when_sampling_matches(monkeypatch, tmp_path: 
     monkeypatch.setattr(mod.mne, "find_events", lambda raw: np.array([[100, 0, 1]]))
     monkeypatch.setattr(mod.mne.channels, "make_standard_montage", lambda name: f"montage:{name}")
 
-    cfg = ProjectConfig(raw={"eeg": {"montage": "biosemi64"}})
+    cfg = ProjectConfig(raw={"preprocessing": {"montage": {"name": "biosemi64"}}})
     mod.downsample_edf_to_fif(
         input_edf_path=tmp_path / "in.edf",
         channels_tsv_path=channels_path,

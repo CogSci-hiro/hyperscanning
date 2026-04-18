@@ -29,9 +29,7 @@ runs:
     resting: [1,2]
 
 eeg:
-  montage: "biosemi64"
   sfreq_hz: 2048
-  target_sfreq_hz: 512   # or set equal to sfreq_hz to effectively disable downsampling
 
 annotations:
   "ipu": "ipu_v1"
@@ -43,20 +41,6 @@ annotations:
 min_latency: -1.0
 max_latency: 1.0
 min_response_duration: 0.01
-
-# Preprocessing ########################################################################################################
-
-preprocessing:
-  save_intermediates: false
-
-# Interpolation
-interpolate:
-  method: "spline"
-
-# Filtering
-filter:
-  l_freq_hz: 0.1
-  h_freq_hz: 30
 
 # Epoching
 epochs:

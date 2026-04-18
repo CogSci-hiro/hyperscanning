@@ -25,9 +25,9 @@ conda:
 
 
 PREPROCESSING_SAVE_INTERMEDIATES = bool(
-    config.get("preprocessing", {}).get(
+    config.get("preprocessing", {}).get("output", {}).get(
         "save_intermediates",
-        config.get("preprocessing", {}).get("output", {}).get("save_intermediates", True),
+        config.get("preprocessing", {}).get("save_intermediates", True),
     )
 )
 
@@ -217,7 +217,12 @@ def derived_path(*parts: str) -> str:
 
 def precomputed_ica_path(filename: str) -> str:
     """Construct a path under the user-configurable precomputed ICA root."""
-    return str(Path(config["paths"]["precomputed_ica_root"]) / filename)
+    normalized = (
+        str(filename)
+        .replace("{subject_id}", "{subject}")
+        .replace("{run_padded}", "{run}")
+    )
+    return str(Path(config["paths"]["precomputed_ica_root"]) / normalized)
 
 
 def maybe_temp(path: str) -> str:

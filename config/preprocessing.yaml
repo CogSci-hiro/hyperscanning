@@ -1,0 +1,25 @@
+preprocessing:
+  montage:
+    name: "biosemi64"
+    on_missing: "ignore"
+    match_case: false
+  downsample:
+    sfreq_hz: 512.0
+  filter:
+    l_freq_hz: 0.1
+    h_freq_hz: 30.0
+  ica:
+    path_pattern: "{subject_id}_task-{task}-ica.fif"
+  interpolation:
+    method: "spline"
+  rereference:
+    method: "average"
+  output:
+    save_intermediates: false
+  pipeline_order:
+    - "separate_drop_channels"
+    - "downsample"
+    - "bandpass"
+    - "apply_precomputed_ica"
+    - "interpolate_bad_channels"
+    - "rereference"

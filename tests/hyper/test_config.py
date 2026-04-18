@@ -63,3 +63,33 @@ def test_load_project_config_prefers_inline_paths_over_sibling_paths_yaml(tmp_pa
     assert cfg.raw["paths"]["bids_root"] == "/bids"
     assert cfg.raw["paths"]["derived_root"] == "/override"
     assert cfg.raw["paths"]["precomputed_ica_root"] == "/override-ica"
+
+
+def test_load_project_config_merges_sibling_preprocessing_yaml(tmp_path: Path) -> None:
+    """Sibling `preprocessing.yaml` should populate nested preprocessing settings."""
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
+    (tmp_path / "preprocessing.yaml").write_text(
+        "preprocessing:\n  downsample:\n    sfreq_hz: 512\n  pipeline_order:\n    - downsample\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_project_config(cfg_path)
+
+    assert cfg.raw["preprocessing"]["downsample"]["sfreq_hz"] == 512
+    assert cfg.raw["preprocessing"]["pipeline_order"] == ["downsample"]
+
+
+def test_load_project_config_prefers_inline_preprocessing_over_sibling_file(tmp_path: Path) -> None:
+    """Temporary configs should still be able to override shared preprocessing settings."""
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("preprocessing:\n  output:\n    save_intermediates: true\n", encoding="utf-8")
+    (tmp_path / "preprocessing.yaml").write_text(
+        "preprocessing:\n  output:\n    save_intermediates: false\n  downsample:\n    sfreq_hz: 512\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_project_config(cfg_path)
+
+    assert cfg.raw["preprocessing"]["output"]["save_intermediates"] is True
+    assert cfg.raw["preprocessing"]["downsample"]["sfreq_hz"] == 512
