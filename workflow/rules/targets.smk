@@ -5,7 +5,7 @@ rule preprocessed_all:
     input:
         filter_non_existent(
             expand(
-                derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
+                derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,

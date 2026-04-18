@@ -15,11 +15,11 @@ preprocessing:
   rereference:
     method: "average"
   output:
-    save_intermediates: true
+    save_intermediates: false
   pipeline_order:
     - "separate_drop_channels"
     - "downsample"
-    - "bandpass"
+    - "rereference"
     - "apply_precomputed_ica"
     - "interpolate_bad_channels"
-    - "rereference"
+    - "bandpass"

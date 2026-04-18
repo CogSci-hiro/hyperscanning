@@ -5,10 +5,10 @@
 # Preprocessing pipeline summary (per subject × task × run)
 # ---------------------------------------------------------
 # 1) downsample     : raw EDF → raw_ds.fif (channel typing + EEG-only selection + montage + bads)
-# 2) filter_raw     : raw_ds.fif → raw_filt.fif
-# 3) apply_ica      : raw_filt.fif + precomputed ICA → raw_ica.fif
+# 2) reref          : raw_ds.fif → raw_reref.fif
+# 3) apply_ica      : raw_reref.fif + precomputed ICA → raw_ica.fif
 # 4) interpolate    : raw_ica.fif + channels.tsv → raw_interp.fif
-# 5) reref          : raw_interp.fif → raw_reref.fif (final continuous preprocessed EEG)
+# 5) filter_raw     : raw_interp.fif → raw_filt.fif (final continuous preprocessed EEG)
 #
 # Notes
 # -----
@@ -44,28 +44,22 @@ rule downsample:
         """
 
 
-rule filter_raw:
+rule reref:
     input:
         raw_ds=derived_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif"),
+        channels=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_channels.tsv"),
         config="config/config.yaml"
     output:
-        raw_filt=maybe_temp(derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"))
-    params:
-        l_freq=float(config["preprocessing"]["filter"]["l_freq_hz"]),
-        h_freq=float(config["preprocessing"]["filter"]["h_freq_hz"])
+        raw_reref=maybe_temp(derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"))
     conda:
         CONDA_PY_ENV
-    threads: 1
-    resources:
-        mem_mb=1_000
     shell:
         """
-        {HYPER_MODULE_CMD} filter \
+        {HYPER_MODULE_CMD} reref \
             --config {input.config} \
             --in-fif {input.raw_ds} \
-            --l-freq {params.l_freq} \
-            --h-freq {params.h_freq} \
-            --out {output.raw_filt}
+            --channels {input.channels} \
+            --out {output.raw_reref}
         """
 
 
@@ -75,7 +69,7 @@ rule filter_raw:
 
 rule ica_apply:
     input:
-        raw_filt=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
+        raw_reref=derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
         ica=precomputed_ica_path(config["preprocessing"]["ica"]["path_pattern"]),
         config="config/config.yaml"
     output:
@@ -86,7 +80,7 @@ rule ica_apply:
         """
         {HYPER_MODULE_CMD} ica-apply \
             --config {input.config} \
-            --in-fif {input.raw_filt} \
+            --in-fif {input.raw_reref} \
             --ica {input.ica} \
             --out {output.raw_ica}
         """
@@ -117,25 +111,31 @@ rule interpolate:
 
 
 # =============================================================================
-# Final rereference
+# Final band-pass filtering
 # =============================================================================
 
-rule reref:
+rule filter_raw:
     input:
         raw_interp=derived_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif"),
-        channels=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_channels.tsv"),
         config="config/config.yaml"
     output:
-        raw_reref=derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif")
+        raw_filt=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif")
+    params:
+        l_freq=float(config["preprocessing"]["filter"]["l_freq_hz"]),
+        h_freq=float(config["preprocessing"]["filter"]["h_freq_hz"])
     conda:
         CONDA_PY_ENV
+    threads: 1
+    resources:
+        mem_mb=1_000
     shell:
         """
-        {HYPER_MODULE_CMD} reref \
+        {HYPER_MODULE_CMD} filter \
             --config {input.config} \
             --in-fif {input.raw_interp} \
-            --channels {input.channels} \
-            --out {output.raw_reref}
+            --l-freq {params.l_freq} \
+            --h-freq {params.h_freq} \
+            --out {output.raw_filt}
         """
 
 # =============================================================================
@@ -145,7 +145,7 @@ rule reref:
 rule metadata:
     input:
         ipu=annotation_path(config["annotations"]["ipu"], "{subject}_run-{run}_ipu.csv"),
-        raw=derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
+        raw=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
         config="config/config.yaml"
     output:
         tsv=derived_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
@@ -176,7 +176,7 @@ rule metadata:
 
 rule epoch:
     input:
-        raw=derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
+        raw=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
         metadata=derived_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
         events=derived_path("beh", "metadata", "{subject}_task-{task}_run-{run}_events.npy"),
         config="config/config.yaml"

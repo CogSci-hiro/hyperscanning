@@ -1,0 +1,59 @@
+"""CLI command for vowel-centered F1/F2 event extraction."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+from typing import Any
+
+from hyper.features.acoustic.formants import FormantEventExtractionConfig
+from hyper.features.pipelines.acoustics import run_vowel_formant_pipeline
+
+
+def add_subparser(subparsers: Any) -> None:
+    """Register the `acoustic-formants` subcommand."""
+    parser = subparsers.add_parser(
+        "acoustic-formants",
+        help="Extract vowel-centered F1/F2 median event tables from TextGrid intervals.",
+    )
+    parser.add_argument("--config", type=Path, required=True, help="Path to config YAML.")
+    parser.add_argument("--audio", type=Path, required=True, help="Input speech WAV file.")
+    parser.add_argument("--textgrid", type=Path, required=True, help="TextGrid containing vowel source intervals.")
+    parser.add_argument("--tier", type=str, required=True, help="Tier name containing phoneme/vowel intervals.")
+    parser.add_argument("--out-tsv", type=Path, required=True, help="Output TSV event table path.")
+    parser.add_argument("--out-sidecar", type=Path, required=True, help="Output JSON sidecar path.")
+    parser.add_argument("--speaker", type=str, default=None, help="Optional speaker label to store in the output table.")
+    parser.add_argument("--language", type=str, default=None, help="Optional VoxAtlas phonology language code.")
+    parser.add_argument("--resource-root", type=str, default=None, help="Optional VoxAtlas phonology resource root.")
+    parser.add_argument("--frame-length", type=float, default=0.025, help="Formant frame length in seconds.")
+    parser.add_argument("--frame-step", type=float, default=0.010, help="Formant frame step in seconds.")
+    parser.add_argument("--lpc-order", type=int, default=10, help="Fallback LPC order for formant tracking.")
+    parser.add_argument("--max-formant", type=float, default=5500.0, help="Maximum formant frequency in Hertz.")
+    parser.add_argument(
+        "--min-duration",
+        type=float,
+        default=0.030,
+        help="Minimum vowel interval duration in seconds required for extraction.",
+    )
+
+
+def run(args: argparse.Namespace, cfg) -> None:
+    """Execute the `acoustic-formants` command."""
+    del cfg
+    run_vowel_formant_pipeline(
+        audio_path=args.audio,
+        textgrid_path=args.textgrid,
+        tier_name=str(args.tier),
+        output_tsv_path=args.out_tsv,
+        output_sidecar_path=args.out_sidecar,
+        speaker=args.speaker,
+        config=FormantEventExtractionConfig(
+            language=args.language,
+            resource_root=args.resource_root,
+            frame_length_seconds=float(args.frame_length),
+            frame_step_seconds=float(args.frame_step),
+            lpc_order=int(args.lpc_order),
+            max_formant_hz=float(args.max_formant),
+            min_interval_duration_seconds=float(args.min_duration),
+        ),
+    )

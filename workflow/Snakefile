@@ -57,10 +57,10 @@ PREPROCESSING_PIPELINE_ORDER = list((config.get("preprocessing") or {}).get("pip
 EXPECTED_PREPROCESSING_PIPELINE_ORDER = [
     "separate_drop_channels",
     "downsample",
-    "bandpass",
+    "rereference",
     "apply_precomputed_ica",
     "interpolate_bad_channels",
-    "rereference",
+    "bandpass",
 ]
 if PREPROCESSING_PIPELINE_ORDER and PREPROCESSING_PIPELINE_ORDER != EXPECTED_PREPROCESSING_PIPELINE_ORDER:
     raise ValueError(
