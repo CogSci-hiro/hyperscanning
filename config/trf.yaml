@@ -20,7 +20,7 @@ trf:
   target_sfreq: 64.0
   lags:
     tmin_seconds: -0.50
-    tmax_seconds: 0.50
+    tmax_seconds: 1.50
   conversation:
     duration_seconds: 240.0
     start_source: metadata

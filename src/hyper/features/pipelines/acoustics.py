@@ -28,6 +28,9 @@ ALIGNMENT_EVENT_COLUMNS: tuple[str, ...] = (
     "onset_seconds",
     "duration_seconds",
     "label",
+    "speaker",
+    "source_subject",
+    "source_role",
     "source_interval_id",
 )
 
@@ -128,11 +131,21 @@ def run_alignment_event_pipeline(
         filtered = filtered.loc[~filtered["label"].isin(set(exclude_labels))].copy()
     filtered = filtered.loc[filtered["label"] != ""].reset_index(drop=True)
 
+    inferred_speaker = None
+    if source_subject is not None:
+        try:
+            _, inferred_speaker = infer_dyad_index_and_speaker(source_subject)
+        except ValueError:
+            inferred_speaker = None
+
     event_table = pd.DataFrame(
         {
             "onset_seconds": filtered["start"].astype(float),
             "duration_seconds": filtered["end"].astype(float) - filtered["start"].astype(float),
             "label": filtered["label"].astype(str),
+            "speaker": inferred_speaker,
+            "source_subject": source_subject,
+            "source_role": source_role,
             "source_interval_id": filtered.index.astype(str),
         },
         columns=ALIGNMENT_EVENT_COLUMNS,
@@ -192,6 +205,9 @@ def run_token_event_pipeline(
             "onset_seconds": filtered["start"].astype(float),
             "duration_seconds": filtered["end"].astype(float) - filtered["start"].astype(float),
             "label": filtered["token"].astype(str),
+            "speaker": speaker,
+            "source_subject": source_subject if source_subject is not None else subject,
+            "source_role": source_role,
             "source_interval_id": filtered.index.astype(str),
         },
         columns=ALIGNMENT_EVENT_COLUMNS,

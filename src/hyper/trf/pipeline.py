@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,7 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 from sklearn.model_selection import GroupKFold
+from tqdm.auto import tqdm
 
 from hyper.config import ProjectConfig
 from hyper.paths import ProjectPaths
@@ -309,7 +311,13 @@ def _predictor_path(
         run_stem = _run_stem(subject_id, task, run_id)
         return root / "features" / "continuous" / spec.dirname / f"{run_stem}_desc-{spec.descriptor}_feature.npy"
     if spec.storage_kind == "event":
-        storage_subject = subject_id if spec.role == "self" else _partner_subject_id(subject_id)
+        # Out-dir event features are materialized under the current subject's run
+        # stem with self/other encoded in the descriptor, while LM event features
+        # remain stored one file per source subject.
+        if spec.path_root == "lm" and spec.role == "other":
+            storage_subject = _partner_subject_id(subject_id)
+        else:
+            storage_subject = subject_id
         run_stem = _run_stem(storage_subject, task, run_id)
         canonical_path = root / "features" / "events" / spec.dirname / f"{run_stem}_desc-{spec.descriptor}_features.tsv"
         if spec.path_root != "lm":
@@ -824,6 +832,7 @@ def fit_nested_trf(
     *,
     config: TrfConfig,
     coefficient_path: Path | None = None,
+    progress_label: str | None = None,
 ) -> tuple[list[TrfFoldResult], list[Path]]:
     """Fit TRF with nested grouped CV on segment-level metadata units."""
     if len(segment_designs) == 0:
@@ -842,61 +851,85 @@ def fit_nested_trf(
     fold_results: list[TrfFoldResult] = []
     coefficient_paths: list[Path] = []
     coefficient_payload: dict[str, np.ndarray] = {}
+    progress_bar = tqdm(
+        total=0,
+        desc=progress_label or "TRF nested CV",
+        unit="fit",
+        dynamic_ncols=True,
+        disable=not sys.stderr.isatty(),
+    )
 
-    for outer_fold_index, (train_index, test_index) in enumerate(
-        outer_splitter.split(segment_indices, groups=outer_groups),
-        start=1,
-    ):
-        train_designs = [segment_designs[index] for index in train_index]
-        test_designs = [segment_designs[index] for index in test_index]
-        inner_splitter, inner_groups, actual_inner_splits = prepare_group_kfold(
-            train_designs,
-            requested_splits=config.cv.inner.n_splits,
-            group_by=config.cv.inner.group_by,
-            context=f"inner CV (outer fold {outer_fold_index})",
-        )
-
-        inner_segment_indices = np.arange(len(train_designs))
-        alpha_scores: list[float] = []
-
-        for alpha in alpha_values:
-            fold_scores: list[float] = []
-            for inner_train_index, inner_valid_index in inner_splitter.split(inner_segment_indices, groups=inner_groups):
-                inner_train_designs = [train_designs[index] for index in inner_train_index]
-                inner_valid_designs = [train_designs[index] for index in inner_valid_index]
-                fold_score, _ = _fit_one_alpha(
-                    inner_train_designs,
-                    inner_valid_designs,
-                    alpha=float(alpha),
-                    config=config,
-                    lag_samples=lag_samples,
-                )
-                fold_scores.append(fold_score)
-            alpha_scores.append(float(np.nanmean(fold_scores)))
-
-        best_alpha_index = int(np.nanargmax(np.asarray(alpha_scores, dtype=float)))
-        selected_alpha = float(alpha_values[best_alpha_index])
-        outer_score, outer_model = _fit_one_alpha(
-            train_designs,
-            test_designs,
-            alpha=selected_alpha,
-            config=config,
-            lag_samples=lag_samples,
-        )
-        if coefficient_path is not None:
-            coefficient_payload[f"outer_fold_{outer_fold_index}"] = np.asarray(outer_model.get_coef(), dtype=np.float32)
-
-        fold_results.append(
-            TrfFoldResult(
-                outer_fold_index=outer_fold_index,
-                score=float(outer_score),
-                selected_alpha=selected_alpha,
-                actual_outer_splits=actual_outer_splits,
-                actual_inner_splits=actual_inner_splits,
-                train_segment_ids=tuple(segment_designs[index].segment.segment_id for index in train_index),
-                test_segment_ids=tuple(segment_designs[index].segment.segment_id for index in test_index),
+    try:
+        for outer_fold_index, (train_index, test_index) in enumerate(
+            outer_splitter.split(segment_indices, groups=outer_groups),
+            start=1,
+        ):
+            train_designs = [segment_designs[index] for index in train_index]
+            test_designs = [segment_designs[index] for index in test_index]
+            inner_splitter, inner_groups, actual_inner_splits = prepare_group_kfold(
+                train_designs,
+                requested_splits=config.cv.inner.n_splits,
+                group_by=config.cv.inner.group_by,
+                context=f"inner CV (outer fold {outer_fold_index})",
             )
-        )
+            progress_bar.total = int((progress_bar.total or 0) + (len(alpha_values) * actual_inner_splits) + 1)
+            progress_bar.set_postfix_str(f"outer {outer_fold_index}/{actual_outer_splits}")
+            progress_bar.refresh()
+
+            inner_segment_indices = np.arange(len(train_designs))
+            alpha_scores: list[float] = []
+
+            for alpha in alpha_values:
+                fold_scores: list[float] = []
+                progress_bar.set_postfix_str(
+                    f"outer {outer_fold_index}/{actual_outer_splits}, alpha={float(alpha):.3g}"
+                )
+                for inner_train_index, inner_valid_index in inner_splitter.split(
+                    inner_segment_indices,
+                    groups=inner_groups,
+                ):
+                    inner_train_designs = [train_designs[index] for index in inner_train_index]
+                    inner_valid_designs = [train_designs[index] for index in inner_valid_index]
+                    fold_score, _ = _fit_one_alpha(
+                        inner_train_designs,
+                        inner_valid_designs,
+                        alpha=float(alpha),
+                        config=config,
+                        lag_samples=lag_samples,
+                    )
+                    fold_scores.append(fold_score)
+                    progress_bar.update(1)
+                alpha_scores.append(float(np.nanmean(fold_scores)))
+
+            best_alpha_index = int(np.nanargmax(np.asarray(alpha_scores, dtype=float)))
+            selected_alpha = float(alpha_values[best_alpha_index])
+            progress_bar.set_postfix_str(
+                f"outer {outer_fold_index}/{actual_outer_splits}, refit alpha={selected_alpha:.3g}"
+            )
+            outer_score, outer_model = _fit_one_alpha(
+                train_designs,
+                test_designs,
+                alpha=selected_alpha,
+                config=config,
+                lag_samples=lag_samples,
+            )
+            progress_bar.update(1)
+            if coefficient_path is not None:
+                coefficient_payload[f"outer_fold_{outer_fold_index}"] = np.asarray(outer_model.get_coef(), dtype=np.float32)
+
+            fold_results.append(
+                TrfFoldResult(
+                    outer_fold_index=outer_fold_index,
+                    score=float(outer_score),
+                    selected_alpha=selected_alpha,
+                    actual_outer_splits=actual_outer_splits,
+                    actual_inner_splits=actual_inner_splits,
+                    train_segment_ids=tuple(segment_designs[index].segment.segment_id for index in train_index),
+                    test_segment_ids=tuple(segment_designs[index].segment.segment_id for index in test_index),
+                )
+            )
+    finally:
+        progress_bar.close()
 
     if coefficient_path is not None:
         coefficient_path.parent.mkdir(parents=True, exist_ok=True)
@@ -970,6 +1003,7 @@ def run_trf_pipeline(
         lagged_designs,
         config=trf_cfg,
         coefficient_path=coefficient_path,
+        progress_label=f"TRF {subject_id} {task}",
     )
 
     if trf_cfg.outputs.save_fold_scores:

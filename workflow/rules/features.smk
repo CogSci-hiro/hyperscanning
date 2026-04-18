@@ -11,6 +11,11 @@ def _partner_subject(subject):
     return f"sub-{partner_num:03d}"
 
 
+def _speaker_for_subject(subject):
+    subject_num = int(str(subject).replace("sub-", ""))
+    return "A" if (subject_num % 2 == 1) else "B"
+
+
 def _trf_predictor_spec(predictor_name, subject, task, run):
     acoustic_specs = {
         "speech_envelope": ("continuous", out_path, subject, "envelope", "self_envelope"),
@@ -25,17 +30,17 @@ def _trf_predictor_spec(predictor_name, subject, task, run):
     }
     event_specs = {
         "self_f1_f2": ("event", out_path, subject, "vowels", "self_vowels"),
-        "other_f1_f2": ("event", out_path, _partner_subject(subject), "vowels", "other_vowels"),
+        "other_f1_f2": ("event", out_path, subject, "vowels", "other_vowels"),
         "self_f1": ("event", out_path, subject, "vowels", "self_vowels"),
-        "other_f1": ("event", out_path, _partner_subject(subject), "vowels", "other_vowels"),
+        "other_f1": ("event", out_path, subject, "vowels", "other_vowels"),
         "self_f2": ("event", out_path, subject, "vowels", "self_vowels"),
-        "other_f2": ("event", out_path, _partner_subject(subject), "vowels", "other_vowels"),
+        "other_f2": ("event", out_path, subject, "vowels", "other_vowels"),
         "self_phoneme_onsets": ("event", out_path, subject, "phonemes", "self_phonemes"),
-        "other_phoneme_onsets": ("event", out_path, _partner_subject(subject), "phonemes", "other_phonemes"),
+        "other_phoneme_onsets": ("event", out_path, subject, "phonemes", "other_phonemes"),
         "self_syllable_onsets": ("event", out_path, subject, "syllables", "self_syllables"),
-        "other_syllable_onsets": ("event", out_path, _partner_subject(subject), "syllables", "other_syllables"),
+        "other_syllable_onsets": ("event", out_path, subject, "syllables", "other_syllables"),
         "self_token_onsets": ("event", out_path, subject, "tokens", "self_tokens"),
-        "other_token_onsets": ("event", out_path, _partner_subject(subject), "tokens", "other_tokens"),
+        "other_token_onsets": ("event", out_path, subject, "tokens", "other_tokens"),
         "self_surprisal": ("event", lm_feature_path, subject, "lm_surprisal", "lmSurprisal"),
         "other_surprisal": ("event", lm_feature_path, _partner_subject(subject), "lm_surprisal", "lmSurprisal"),
         "self_entropy": ("event", lm_feature_path, subject, "lm_shannon_entropy", "lmShannonEntropy"),
@@ -215,7 +220,9 @@ rule f1_f2:
         other_sidecar=out_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-other_vowels_features.json")
     params:
         tier="PhonAlign",
-        other_subject=lambda wildcards: _partner_subject(wildcards.subject)
+        other_subject=lambda wildcards: _partner_subject(wildcards.subject),
+        self_speaker=lambda wildcards: _speaker_for_subject(wildcards.subject),
+        other_speaker=lambda wildcards: _speaker_for_subject(_partner_subject(wildcards.subject))
     conda:
         CONDA_PY_ENV
     shell:
@@ -226,6 +233,7 @@ rule f1_f2:
             --alignment {input.self_alignment} \
             --tier {params.tier} \
             --feature-name self_vowels \
+            --speaker {params.self_speaker} \
             --source-subject {wildcards.subject} \
             --source-role self \
             --out-tsv {output.self_table} \
@@ -236,6 +244,7 @@ rule f1_f2:
             --alignment {input.other_alignment} \
             --tier {params.tier} \
             --feature-name other_vowels \
+            --speaker {params.other_speaker} \
             --source-subject {params.other_subject} \
             --source-role other \
             --out-tsv {output.other_table} \
@@ -489,6 +498,8 @@ def _trf_qc_inputs(_wildcards):
     if task not in TASKS:
         return inputs
     for subject in SUBJECTS:
+        if not _trf_subject_has_eligible_run(subject, task):
+            continue
         inputs.append(out_path("trf", subject, f"task-{task}", "coefficients.npz"))
         inputs.append(out_path("trf", subject, f"task-{task}", "design_info.json"))
     return inputs
