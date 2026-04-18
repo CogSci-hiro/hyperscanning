@@ -290,7 +290,6 @@ def load_trf_run_inputs(
         source_sfreq = float(raw.info["sfreq"])
         predictor_values = _stack_predictors(predictor_paths)
         target_values = np.asarray(raw.get_data().T, dtype=np.float32)
-        predictor_values, target_values = _trim_to_shared_length(predictor_values, target_values)
         conversation_start_seconds = _load_conversation_start_seconds(timing_path)
         cropped_target, start_sample, stop_sample = crop_target_to_conversation_window(
             target_values,
