@@ -211,6 +211,12 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
             out_path("figures", "trf_kernels", "manifest.json")
 
 
+if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+    rule qc_trf_alpha_scores_all:
+        input:
+            out_path("figures", "trf_alpha_scores", "manifest.json")
+
+
 rule canary_preprocessing:
     input:
         ds=out_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds.fif"),

@@ -3,15 +3,29 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+import matplotlib
 import numpy as np
+from matplotlib import pyplot as plt
 
 from hyper.config import ProjectConfig
 from hyper.paths import ProjectPaths
+from hyper.trf.config import load_trf_config
+from hyper.trf.pipeline import (
+    _fit_one_alpha,
+    build_lagged_segment_design,
+    compute_lag_samples,
+    load_trf_run_inputs,
+    prepare_group_kfold,
+    split_run_into_segments,
+)
 from hyper.viz import plot_joint_map, sanitize_token
+
+matplotlib.use("Agg")
 
 TRF_COEFFICIENTS_FILENAME = "coefficients.npz"
 TRF_DESIGN_INFO_FILENAME = "design_info.json"
@@ -27,6 +41,18 @@ class SubjectKernelSummary:
     channel_names: tuple[str, ...]
     mean_kernel_lag_feature_channel: np.ndarray
     outer_fold_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SubjectAlphaCurve:
+    """Per-subject alpha sweep summary for one predictor."""
+
+    subject_id: str
+    predictor_name: str
+    alpha_values: np.ndarray
+    mean_scores: np.ndarray
+    se_scores: np.ndarray
+    fold_scores: np.ndarray
 
 
 def _discover_subject_ids(cfg: ProjectConfig, paths: ProjectPaths) -> list[str]:
@@ -148,6 +174,151 @@ def _load_subject_kernel_summary(
     )
 
 
+def _load_subject_predictor_names(
+    paths: ProjectPaths,
+    *,
+    subject_id: str,
+    task: str,
+    fallback_predictors: Sequence[str],
+) -> tuple[str, ...]:
+    """Return predictor names recorded for one fitted TRF subject, or a fallback list."""
+    design_info_path = _trf_subject_dir(paths, subject_id=subject_id, task=task) / TRF_DESIGN_INFO_FILENAME
+    if design_info_path.exists():
+        design_info = json.loads(design_info_path.read_text(encoding="utf-8"))
+        predictor_names = tuple(str(name) for name in design_info.get("predictors", []))
+        if len(predictor_names) > 0:
+            return predictor_names
+    return tuple(str(name) for name in fallback_predictors)
+
+
+def _single_predictor_cfg(cfg: ProjectConfig, predictor_name: str) -> ProjectConfig:
+    """Clone the project config and replace the TRF predictor list with one predictor."""
+    raw = deepcopy(cfg.raw)
+    trf_cfg = dict(raw.get("trf", {}))
+    trf_cfg["predictors"] = [str(predictor_name)]
+    raw["trf"] = trf_cfg
+    return ProjectConfig(raw=raw)
+
+
+def _standard_error(values: np.ndarray) -> np.ndarray:
+    """Compute column-wise standard error with safe handling for one fold."""
+    array = np.asarray(values, dtype=float)
+    if array.ndim != 2:
+        raise ValueError("values must have shape (n_folds, n_points)")
+    if array.shape[0] <= 1:
+        return np.zeros(array.shape[1], dtype=float)
+    return np.nanstd(array, axis=0, ddof=1) / np.sqrt(float(array.shape[0]))
+
+
+def _compute_subject_alpha_curve(
+    cfg: ProjectConfig,
+    paths: ProjectPaths,
+    *,
+    subject_id: str,
+    task: str,
+    predictor_name: str,
+) -> SubjectAlphaCurve | None:
+    """Compute held-out outer-fold alpha scores for one subject and one predictor."""
+    single_cfg = _single_predictor_cfg(cfg, predictor_name)
+    trf_cfg = load_trf_config(single_cfg)
+    run_ids = [str(run_id) for run_id in single_cfg.raw.get("runs", {}).get("include", {}).get(task, [])]
+    run_inputs, _ = load_trf_run_inputs(
+        cfg=single_cfg,
+        paths=paths,
+        subject_id=subject_id,
+        task=task,
+        run_ids=run_ids,
+    )
+    if len(run_inputs) == 0:
+        return None
+
+    lag_samples = compute_lag_samples(
+        tmin_seconds=trf_cfg.lags.tmin_seconds,
+        tmax_seconds=trf_cfg.lags.tmax_seconds,
+        sampling_rate_hz=trf_cfg.target_sfreq,
+    )
+    segments = []
+    for run_input in run_inputs:
+        run_segments, _ = split_run_into_segments(run_input, trf_cfg)
+        segments.extend(run_segments)
+    if len(segments) == 0:
+        return None
+
+    lagged_designs = [build_lagged_segment_design(segment, lag_samples) for segment in segments]
+    alpha_values = np.asarray(trf_cfg.alpha_values(), dtype=float)
+    outer_splitter, outer_groups, _ = prepare_group_kfold(
+        lagged_designs,
+        requested_splits=trf_cfg.cv.outer.n_splits,
+        group_by=trf_cfg.cv.outer.group_by,
+        context=f"outer alpha QC for {subject_id} {predictor_name}",
+    )
+    segment_indices = np.arange(len(lagged_designs))
+    score_rows: list[list[float]] = []
+    for train_index, test_index in outer_splitter.split(segment_indices, groups=outer_groups):
+        train_designs = [lagged_designs[index] for index in train_index]
+        test_designs = [lagged_designs[index] for index in test_index]
+        fold_scores = []
+        for alpha in alpha_values:
+            fold_score, _ = _fit_one_alpha(
+                train_designs,
+                test_designs,
+                alpha=float(alpha),
+                config=trf_cfg,
+                lag_samples=lag_samples,
+            )
+            fold_scores.append(float(fold_score))
+        score_rows.append(fold_scores)
+
+    fold_scores_array = np.asarray(score_rows, dtype=float)
+    return SubjectAlphaCurve(
+        subject_id=subject_id,
+        predictor_name=str(predictor_name),
+        alpha_values=alpha_values,
+        mean_scores=np.nanmean(fold_scores_array, axis=0),
+        se_scores=_standard_error(fold_scores_array),
+        fold_scores=fold_scores_array,
+    )
+
+
+def _plot_subject_alpha_curves(
+    curves: Sequence[SubjectAlphaCurve],
+    *,
+    output_stem: Path,
+    task: str,
+    formats: Sequence[str] = ("png", "pdf"),
+    dpi: int = 300,
+) -> list[Path]:
+    """Render one subject-level alpha sweep figure with one line per predictor."""
+    if len(curves) == 0:
+        raise ValueError("Expected at least one subject alpha curve to plot.")
+    subject_id = curves[0].subject_id
+    figure, axis = plt.subplots(figsize=(8.5, 5.5))
+    for curve in curves:
+        axis.plot(curve.alpha_values, curve.mean_scores, linewidth=2.0, label=curve.predictor_name)
+        axis.fill_between(
+            curve.alpha_values,
+            curve.mean_scores - curve.se_scores,
+            curve.mean_scores + curve.se_scores,
+            alpha=0.2,
+        )
+    axis.set_xscale("log")
+    axis.set_xlabel("Alpha")
+    axis.set_ylabel("Channel-mean held-out score")
+    axis.set_title(f"TRF alpha QC | {subject_id} | {task}")
+    axis.legend(frameon=False)
+    axis.grid(True, alpha=0.25)
+    figure.tight_layout()
+
+    output_stem.parent.mkdir(parents=True, exist_ok=True)
+    written_paths: list[Path] = []
+    for fmt in formats:
+        output_path = output_stem.with_suffix(f".{fmt}")
+        figure.savefig(output_path, dpi=dpi, bbox_inches="tight")
+        written_paths.append(output_path)
+    plt.close(figure)
+    return written_paths
+
+
 def build_group_average_trf_kernel_manifest(
     *,
     cfg: ProjectConfig,
@@ -217,6 +388,67 @@ def build_group_average_trf_kernel_manifest(
         "task": task,
         "subject_count": len(subject_summaries),
         "subjects": [summary.subject_id for summary in subject_summaries],
+        "plot_count": len(plot_entries),
+        "plots": plot_entries,
+    }
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
+def build_subject_alpha_qc_manifest(
+    *,
+    cfg: ProjectConfig,
+    task: str,
+    manifest_path: Path,
+    formats: Sequence[str] = ("png", "pdf"),
+    dpi: int = 300,
+) -> dict[str, object]:
+    """Render one per-subject alpha-sweep QC figure with one line per predictor."""
+    paths = ProjectPaths.from_config(cfg)
+    fallback_predictors = tuple(str(name) for name in cfg.raw.get("trf", {}).get("predictors", []))
+    plot_entries: list[dict[str, object]] = []
+    for subject_id in _discover_subject_ids(cfg, paths):
+        predictor_names = _load_subject_predictor_names(
+            paths,
+            subject_id=subject_id,
+            task=task,
+            fallback_predictors=fallback_predictors,
+        )
+        curves = []
+        for predictor_name in predictor_names:
+            curve = _compute_subject_alpha_curve(
+                cfg,
+                paths,
+                subject_id=subject_id,
+                task=task,
+                predictor_name=predictor_name,
+            )
+            if curve is not None:
+                curves.append(curve)
+        if len(curves) == 0:
+            continue
+        output_stem = manifest_path.parent / "subjects" / sanitize_token(subject_id)
+        written_paths = _plot_subject_alpha_curves(
+            curves,
+            output_stem=output_stem,
+            task=task,
+            formats=formats,
+            dpi=dpi,
+        )
+        plot_entries.append(
+            {
+                "subject_id": subject_id,
+                "task": task,
+                "predictors": [curve.predictor_name for curve in curves],
+                "alpha_values": curves[0].alpha_values.tolist(),
+                "files": [str(path) for path in written_paths],
+            }
+        )
+
+    manifest = {
+        "status": "ok",
+        "task": task,
         "plot_count": len(plot_entries),
         "plots": plot_entries,
     }

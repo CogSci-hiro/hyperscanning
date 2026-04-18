@@ -375,3 +375,23 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
                 --task conversation \
                 --manifest {output.manifest}
             """
+
+
+if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+    rule trf_qc_alpha_scores:
+        input:
+            _trf_qc_inputs
+        output:
+            manifest=out_path("figures", "trf_alpha_scores", "manifest.json")
+        conda:
+            CONDA_PY_ENV
+        threads: 1
+        resources:
+            mem_mb=4_000
+        shell:
+            """
+            {HYPER_MODULE_CMD} trf-alpha-qc \
+                --config config/config.yaml \
+                --task conversation \
+                --manifest {output.manifest}
+            """
