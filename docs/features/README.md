@@ -4,16 +4,16 @@ This directory contains the initial documentation and metadata templates for con
 
 ## Contents
 
-- `features_continuous.md`  
+* `features_continuous.md`
   Generic documentation for continuous-feature storage and metadata conventions.
 
-- `continuous_feature_template.json`  
+* `continuous_feature_template.json`
   Reusable JSON sidecar template for any continuous feature.
 
-- `f0_example_feature.json`  
+* `f0_example_feature.json`
   Worked example of a continuous-feature sidecar for F0.
 
-- `oganian_envelope_example_feature.json`  
+* `oganian_envelope_example_feature.json`
   Worked example of a continuous-feature sidecar for the speech envelope.
 
 ## Intended use

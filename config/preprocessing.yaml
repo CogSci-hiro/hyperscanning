@@ -4,7 +4,7 @@ preprocessing:
     on_missing: "ignore"
     match_case: false
   downsample:
-    sfreq_hz: 512.0
+    sfreq_hz: 64.0
   filter:
     l_freq_hz: 0.1
     h_freq_hz: 30.0
