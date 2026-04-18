@@ -4,6 +4,7 @@ These tests patch MNE I/O to validate control flow decisions without touching
 real EEG files.
 """
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -31,7 +32,7 @@ def test_read_channels_tsv_extracts_bads_and_types(tmp_path: Path) -> None:
 
 
 def test_downsample_edf_to_fif_applies_processing(monkeypatch, tmp_path: Path, dummy_raw) -> None:
-    """Pipeline should crop, set metadata, resample when needed, and save."""
+    """Pipeline should preserve full raw, set metadata, resample when needed, and save timing metadata."""
     channels_path = tmp_path / "channels.tsv"
     pd.DataFrame({"name": ["Fp1"], "status": ["bad"], "type": ["EEG"]}).to_csv(
         channels_path, sep="\t", index=False
@@ -51,12 +52,17 @@ def test_downsample_edf_to_fif_applies_processing(monkeypatch, tmp_path: Path, d
     )
 
     call_names = [name for name, _ in dummy_raw.calls]
-    assert "crop" in call_names
+    assert "crop" not in call_names
     assert "pick" in call_names
     assert "set_montage" in call_names
     assert "set_channel_types" in call_names
     assert "resample" in call_names
     assert "save" in call_names
+
+    sidecar = json.loads((tmp_path / "out_timing.json").read_text(encoding="utf-8"))
+    assert sidecar["conversation_start_seconds"] == 1.0
+    assert sidecar["conversation_start_sample_original"] == 100
+    assert sidecar["conversation_start_sample_output"] == 50
 
 
 def test_downsample_drops_non_eeg_channels_after_applying_bids_types(monkeypatch, tmp_path: Path, dummy_raw) -> None:
@@ -130,3 +136,12 @@ def test_downsample_skips_resample_when_sampling_matches(monkeypatch, tmp_path: 
     )
 
     assert not any(name == "resample" for name, _ in dummy_raw.calls)
+
+
+def test_find_conversation_start_seconds_uses_first_trigger(monkeypatch, dummy_raw) -> None:
+    """Conversation-start extraction should use the first detected trigger sample."""
+    monkeypatch.setattr(mod.mne, "find_events", lambda raw, **kwargs: np.array([[125, 0, 1], [400, 0, 2]]))
+
+    onset_s = mod._find_conversation_start_seconds(dummy_raw)
+
+    assert onset_s == 1.25

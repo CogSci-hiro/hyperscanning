@@ -18,6 +18,7 @@
 # duplicating the logic.
 
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -217,11 +218,13 @@ def _load_raw_edf(input_edf_path: Path, *, preload: bool) -> mne.io.BaseRaw:
     return mne.io.read_raw_edf(input_edf_path, preload=preload, verbose="ERROR")
 
 
-def _crop_to_conversation(raw: mne.io.BaseRaw) -> mne.io.BaseRaw:
-    """Crop raw data to the fixed conversation window."""
-    events = mne.find_events(raw)
-    conversation_start = events[0, 0] / raw.info["sfreq"]
-    return raw.crop(conversation_start, conversation_start + CONVERSATION_DURATION_S)
+def _find_conversation_start_seconds(raw: mne.io.BaseRaw) -> float:
+    """Extract the first conversation-trigger onset time in seconds."""
+    events = mne.find_events(raw, shortest_event=1, consecutive=True, verbose="ERROR")
+    if events.size == 0:
+        raise ValueError("No trigger events were found in the source EDF; cannot determine conversation start.")
+    conversation_start_sample = int(events[0, 0])
+    return float(conversation_start_sample) / float(raw.info["sfreq"])
 
 
 def _apply_montage_from_config(raw: mne.io.BaseRaw, config: ProjectConfig) -> None:
@@ -273,6 +276,34 @@ def _save_downsampled_raw(raw: mne.io.BaseRaw, output_fif_path: Path) -> None:
     raw.save(output_fif_path, overwrite=True)
 
 
+def _conversation_start_sidecar_path(output_fif_path: Path) -> Path:
+    """Return the JSON sidecar path used to persist conversation-start timing."""
+    return output_fif_path.with_name(f"{output_fif_path.stem}_timing.json")
+
+
+def _write_conversation_start_sidecar(
+    *,
+    output_fif_path: Path,
+    input_edf_path: Path,
+    conversation_start_seconds: float,
+    original_sfreq_hz: float,
+    output_sfreq_hz: float,
+) -> Path:
+    """Persist conversation-start timing next to the derived raw FIF for downstream reuse."""
+    sidecar_path = _conversation_start_sidecar_path(output_fif_path)
+    payload = {
+        "input_edf_path": str(input_edf_path),
+        "output_fif_path": str(output_fif_path),
+        "conversation_start_seconds": float(conversation_start_seconds),
+        "conversation_start_sample_original": int(round(conversation_start_seconds * original_sfreq_hz)),
+        "conversation_start_sample_output": int(round(conversation_start_seconds * output_sfreq_hz)),
+        "original_sampling_rate_hz": float(original_sfreq_hz),
+        "output_sampling_rate_hz": float(output_sfreq_hz),
+    }
+    sidecar_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return sidecar_path
+
+
 def downsample_edf_to_fif(
     *,
     input_edf_path: Path,
@@ -308,6 +339,7 @@ def downsample_edf_to_fif(
 
     Notes
     -----
+    - Extracts and stores the first conversation-trigger onset in a JSON sidecar.
     - Applies montage if `config.raw["eeg"]["montage"]` is set.
     - Marks bad channels based on `channels.tsv` status == "bad" (case-insensitive).
     - Sets channel types when the `type` column is present (EEG/EOG/ECG/...).
@@ -325,10 +357,18 @@ def downsample_edf_to_fif(
     """
     channels_info = _read_channels_tsv(channels_tsv_path)
     raw = _load_raw_edf(input_edf_path, preload=preload)
-    raw = _crop_to_conversation(raw)
+    original_sfreq_hz = float(raw.info["sfreq"])
+    conversation_start_seconds = _find_conversation_start_seconds(raw)
     _apply_channel_types(raw, channels_info)
     raw = _pick_eeg_channels(raw)
     _apply_montage_from_config(raw, config)
     _apply_bad_channels(raw, channels_info)
     _resample_if_needed(raw, target_sfreq_hz=target_sfreq_hz)
     _save_downsampled_raw(raw, output_fif_path)
+    _write_conversation_start_sidecar(
+        output_fif_path=output_fif_path,
+        input_edf_path=input_edf_path,
+        conversation_start_seconds=conversation_start_seconds,
+        original_sfreq_hz=original_sfreq_hz,
+        output_sfreq_hz=float(raw.info["sfreq"]),
+    )

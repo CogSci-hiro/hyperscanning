@@ -15,7 +15,7 @@ preprocessing:
   rereference:
     method: "average"
   output:
-    save_intermediates: false
+    save_intermediates: true
   pipeline_order:
     - "separate_drop_channels"
     - "downsample"
