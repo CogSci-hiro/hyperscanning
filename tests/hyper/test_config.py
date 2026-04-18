@@ -100,7 +100,7 @@ def test_load_project_config_merges_sibling_trf_yaml(tmp_path: Path) -> None:
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
     (tmp_path / "trf.yaml").write_text(
-        "trf:\n  enabled: true\n  target_sfreq: 64\n  predictors:\n    - speech_envelope\n",
+        "trf:\n  enabled: true\n  target_sfreq: 64\n  predictors:\n    - self_speech_envelope\n    - other_speech_envelope\n",
         encoding="utf-8",
     )
 
@@ -108,3 +108,4 @@ def test_load_project_config_merges_sibling_trf_yaml(tmp_path: Path) -> None:
 
     assert cfg.raw["trf"]["enabled"] is True
     assert cfg.raw["trf"]["target_sfreq"] == 64
+    assert cfg.raw["trf"]["predictors"] == ["self_speech_envelope", "other_speech_envelope"]

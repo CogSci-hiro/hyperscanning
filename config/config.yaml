@@ -57,7 +57,8 @@ epochs:
 trf:
   enabled: true
   predictors:
-    - speech_envelope
+    - self_speech_envelope
+    - other_speech_envelope
   target_sfreq: 64.0
   lags:
     tmin_seconds: -0.20

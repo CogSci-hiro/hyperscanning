@@ -1,14 +1,12 @@
 trf:
   enabled: true
   predictors:
-    - speech_envelope
-    - phoneme_onsets
-    - syllable_onsets
-    - token_onsets
+    - self_speech_envelope
+    - other_speech_envelope
   target_sfreq: 64.0
   lags:
-    tmin_seconds: -0.30
-    tmax_seconds: 0.80
+    tmin_seconds: -0.50
+    tmax_seconds: 0.50
   conversation:
     duration_seconds: 240.0
     start_source: metadata
@@ -34,9 +32,9 @@ trf:
       num: 10
   model:
     estimator: ridge
-    fit_intercept: false
+    fit_intercept: true
     standardize_x: true
-    standardize_y: false
+    standardize_y: true
   scoring:
     primary: pearsonr
   random_seed: 42
