@@ -110,7 +110,7 @@ CANARY_RUN = str(CANARY_CFG.get("run", "1"))
 
 # Set canonical roots (single source of truth)
 BIDS_ROOT = Path(config["paths"]["bids_root"])
-DERIVED_ROOT = Path(config["paths"]["derived_root"])
+OUT_DIR = Path(config["paths"].get("out_dir", config["paths"].get("derived_root")))
 ANNOT_ROOT = Path(config["paths"]["annotation_root"])
 
 include: str(WORKFLOW_DIR / "rules" / "preprocessing.smk")

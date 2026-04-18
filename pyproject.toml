@@ -23,7 +23,7 @@ dependencies = [
   "snakemake",
   "spyeeg",
   "tqdm==4.67.1",
-  "voxatlas"
+  "voxatlas>=0.1.1"
 ]
 
 [project.optional-dependencies]

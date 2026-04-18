@@ -7,7 +7,9 @@
       "type": "object",
       "properties": {
         "bids_root": {"type": "string", "minLength": 1},
-        "derived_root": {"type": "string", "minLength": 1},
+        "out_dir": {"type": "string", "minLength": 1},
+        "results_root": {"type": "string", "minLength": 1},
+        "reports_root": {"type": "string", "minLength": 1},
         "precomputed_ica_root": {"type": "string", "minLength": 1},
         "annotation_root": {"type": "string", "minLength": 1}
       },

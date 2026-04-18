@@ -5,11 +5,11 @@
 rule speech_envelope:
     input:
         audio=bids_path("{subject}", "audio", "{subject}_task-{task}_run-{run}.wav"),
-        raw=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
+        raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
         config="config/config.yaml"
     output:
-        values=derived_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-envelope_feature.npy"),
-        sidecar=derived_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-envelope_feature.json")
+        values=out_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-envelope_feature.npy"),
+        sidecar=out_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-envelope_feature.json")
     conda:
         CONDA_PY_ENV
     shell:
@@ -26,11 +26,11 @@ rule speech_envelope:
 rule f0:
     input:
         audio=bids_path("{subject}", "audio", "{subject}_task-{task}_run-{run}.wav"),
-        raw=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
+        raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
         config="config/config.yaml"
     output:
-        values=derived_path("features", "continuous", "f0", "{subject}_task-{task}_run-{run}_desc-f0_feature.npy"),
-        sidecar=derived_path("features", "continuous", "f0", "{subject}_task-{task}_run-{run}_desc-f0_feature.json")
+        values=out_path("features", "continuous", "f0", "{subject}_task-{task}_run-{run}_desc-f0_feature.npy"),
+        sidecar=out_path("features", "continuous", "f0", "{subject}_task-{task}_run-{run}_desc-f0_feature.json")
     conda:
         CONDA_PY_ENV
     shell:
@@ -50,8 +50,8 @@ rule f1_f2:
         alignment=annotation_path("palign_v1", "{subject}_run-{run}_palign.csv"),
         config="config/config.yaml"
     output:
-        table=derived_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-vowels_features.tsv"),
-        sidecar=derived_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-vowels_features.json")
+        table=out_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-vowels_features.tsv"),
+        sidecar=out_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-vowels_features.json")
     params:
         tier="PhonAlign"
     conda:
@@ -73,8 +73,8 @@ rule phoneme_onsets:
         alignment=annotation_path("palign_v1", "{subject}_run-{run}_palign.csv"),
         config="config/config.yaml"
     output:
-        table=derived_path("features", "events", "phonemes", "{subject}_task-{task}_run-{run}_desc-phonemes_features.tsv"),
-        sidecar=derived_path("features", "events", "phonemes", "{subject}_task-{task}_run-{run}_desc-phonemes_features.json")
+        table=out_path("features", "events", "phonemes", "{subject}_task-{task}_run-{run}_desc-phonemes_features.tsv"),
+        sidecar=out_path("features", "events", "phonemes", "{subject}_task-{task}_run-{run}_desc-phonemes_features.json")
     params:
         tier="PhonAlign",
         feature_name="phonemes"
@@ -100,8 +100,8 @@ rule syllable_onsets:
         alignment=annotation_path("syllable_v1", "{subject}_run-{run}_syllable.csv"),
         config="config/config.yaml"
     output:
-        table=derived_path("features", "events", "syllables", "{subject}_task-{task}_run-{run}_desc-syllables_features.tsv"),
-        sidecar=derived_path("features", "events", "syllables", "{subject}_task-{task}_run-{run}_desc-syllables_features.json")
+        table=out_path("features", "events", "syllables", "{subject}_task-{task}_run-{run}_desc-syllables_features.tsv"),
+        sidecar=out_path("features", "events", "syllables", "{subject}_task-{task}_run-{run}_desc-syllables_features.json")
     params:
         tier="SyllAlign",
         feature_name="syllables"
@@ -130,8 +130,8 @@ rule token_onsets:
         ),
         config="config/config.yaml"
     output:
-        table=derived_path("features", "events", "tokens", "{subject}_task-{task}_run-{run}_desc-tokens_features.tsv"),
-        sidecar=derived_path("features", "events", "tokens", "{subject}_task-{task}_run-{run}_desc-tokens_features.json")
+        table=out_path("features", "events", "tokens", "{subject}_task-{task}_run-{run}_desc-tokens_features.tsv"),
+        sidecar=out_path("features", "events", "tokens", "{subject}_task-{task}_run-{run}_desc-tokens_features.json")
     conda:
         CONDA_PY_ENV
     shell:
@@ -162,10 +162,10 @@ def _trf_subject_inputs(wildcards):
         channels = eeg_dir / f"{wildcards.subject}_task-{wildcards.task}_run-{run}_channels.tsv"
         if not (edf.exists() and channels.exists()):
             continue
-        run_inputs.append(derived_path("eeg", "filtered", f"{wildcards.subject}_task-{wildcards.task}_run-{run}_raw_filt.fif"))
+        run_inputs.append(out_path("eeg", "filtered", f"{wildcards.subject}_task-{wildcards.task}_run-{run}_raw_filt.fif"))
         for descriptor in descriptors:
             run_inputs.append(
-                derived_path(
+                out_path(
                     "features",
                     "continuous",
                     descriptor,
@@ -175,15 +175,15 @@ def _trf_subject_inputs(wildcards):
     return run_inputs
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("results_root")):
+if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
     rule trf:
         input:
             _trf_subject_inputs
         output:
-            fold_scores=results_path("trf", "{subject}", "task-{task}", "fold_scores.json"),
-            selected_alpha=results_path("trf", "{subject}", "task-{task}", "selected_alpha_per_fold.json"),
-            coefficients=results_path("trf", "{subject}", "task-{task}", "coefficients.npz"),
-            design_info=results_path("trf", "{subject}", "task-{task}", "design_info.json")
+            fold_scores=out_path("trf", "{subject}", "task-{task}", "fold_scores.json"),
+            selected_alpha=out_path("trf", "{subject}", "task-{task}", "selected_alpha_per_fold.json"),
+            coefficients=out_path("trf", "{subject}", "task-{task}", "coefficients.npz"),
+            design_info=out_path("trf", "{subject}", "task-{task}", "design_info.json")
         conda:
             CONDA_PY_ENV
         shell:

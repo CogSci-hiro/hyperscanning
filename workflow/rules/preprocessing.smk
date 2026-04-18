@@ -13,7 +13,7 @@
 # Notes
 # -----
 # - "bids_path(...)" always refers to raw, immutable inputs.
-# - "derived_path(...)" are regenerable intermediate outputs.
+# - "out_path(...)" are regenerable intermediate outputs.
 # - Downsampling is placed first to reduce compute/memory for all downstream steps.
 #
 
@@ -22,7 +22,7 @@ rule downsample:
         eeg_edf=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_eeg.edf"),
         channels_tsv=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_channels.tsv")
     output:
-        out_fif=maybe_temp(derived_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif"))
+        out_fif=maybe_temp(out_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif"))
     params:
         config_path = CONFIG_PATH,
         sfreq=float(config["eeg"]["sfreq_hz"]),
@@ -46,11 +46,11 @@ rule downsample:
 
 rule reref:
     input:
-        raw_ds=derived_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif"),
+        raw_ds=out_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif"),
         channels=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_channels.tsv"),
         config="config/config.yaml"
     output:
-        raw_reref=maybe_temp(derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"))
+        raw_reref=maybe_temp(out_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"))
     conda:
         CONDA_PY_ENV
     shell:
@@ -69,11 +69,11 @@ rule reref:
 
 rule ica_apply:
     input:
-        raw_reref=derived_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
+        raw_reref=out_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
         ica=precomputed_ica_path(config["preprocessing"]["ica"]["path_pattern"]),
         config="config/config.yaml"
     output:
-        raw_ica=maybe_temp(derived_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"))
+        raw_ica=maybe_temp(out_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"))
     conda:
         CONDA_PY_ENV
     shell:
@@ -92,11 +92,11 @@ rule ica_apply:
 
 rule interpolate:
     input:
-        raw_ica=derived_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"),
+        raw_ica=out_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"),
         channels=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_channels.tsv"),
         config="config/config.yaml"
     output:
-        raw_interp=maybe_temp(derived_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif"))
+        raw_interp=maybe_temp(out_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif"))
     conda:
         CONDA_PY_ENV
     shell:
@@ -116,10 +116,10 @@ rule interpolate:
 
 rule filter_raw:
     input:
-        raw_interp=derived_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif"),
+        raw_interp=out_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif"),
         config="config/config.yaml"
     output:
-        raw_filt=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif")
+        raw_filt=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif")
     params:
         l_freq=float(config["preprocessing"]["filter"]["l_freq_hz"]),
         h_freq=float(config["preprocessing"]["filter"]["h_freq_hz"])
@@ -145,11 +145,11 @@ rule filter_raw:
 rule metadata:
     input:
         ipu=annotation_path(config["annotations"]["ipu"], "{subject}_run-{run}_ipu.csv"),
-        raw=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
+        raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
         config="config/config.yaml"
     output:
-        tsv=derived_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
-        events=derived_path("beh", "metadata", "{subject}_task-{task}_run-{run}_events.npy")
+        tsv=out_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
+        events=out_path("beh", "metadata", "{subject}_task-{task}_run-{run}_events.npy")
     params:
         time_lock="onset",
         anchor="self",
@@ -176,12 +176,12 @@ rule metadata:
 
 rule epoch:
     input:
-        raw=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
-        metadata=derived_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
-        events=derived_path("beh", "metadata", "{subject}_task-{task}_run-{run}_events.npy"),
+        raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
+        metadata=out_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
+        events=out_path("beh", "metadata", "{subject}_task-{task}_run-{run}_events.npy"),
         config="config/config.yaml"
     output:
-        epochs=derived_path("eeg", "epochs", "{subject}_task-{task}_run-{run}_epochs-epo.fif")
+        epochs=out_path("eeg", "epochs", "{subject}_task-{task}_run-{run}_epochs-epo.fif")
     params:
         tmin=float(config["epochs"]["tmin_s"]),
         tmax=float(config["epochs"]["tmax_s"]),

@@ -9,7 +9,7 @@ rule fooof_qc_figure:
     input:
       filter_non_existent(
         expand(
-          derived_path("eeg","downsampled","{subject}","{task}","run-{run}","raw_ds.fif"),
+          out_path("eeg","downsampled","{subject}","{task}","run-{run}","raw_ds.fif"),
           subject=SUBJECTS,
           task=TASKS,
           run=RUNS,

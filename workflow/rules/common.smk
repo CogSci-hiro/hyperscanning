@@ -189,18 +189,18 @@ def filter_non_existent(
 # These helpers centralize how paths are built throughout the workflow.
 # This avoids hardcoding directory layouts inside individual rules.
 #
-# If the project layout changes (e.g., moving from "results/" to "outputs/"),
+# If the project layout changes (e.g., moving from one output root to another),
 # you only need to update the config.yaml and these functions.
 #
 
-def derived_path(*parts: str) -> str:
+def out_path(*parts: str) -> str:
     """
-    Construct a path under the derived data root.
+    Construct a path under the main pipeline output root.
 
     Parameters
     ----------
     *parts
-        Path components relative to the derived data root.
+        Path components relative to the output root.
 
     Returns
     -------
@@ -209,10 +209,16 @@ def derived_path(*parts: str) -> str:
 
     Usage example
     -------------
-        derived_path("epochs", "sub-01", "run-01", "epochs_epo.fif")
-        # "data/derived/epochs/sub-01/run-01/epochs_epo.fif"
+        out_path("epochs", "sub-01", "run-01", "epochs_epo.fif")
+        # "data/out/epochs/sub-01/run-01/epochs_epo.fif"
     """
-    return str(Path(config["paths"]["derived_root"]) / Path(*parts))
+    root = config["paths"].get("out_dir", config["paths"].get("derived_root"))
+    return str(Path(root) / Path(*parts))
+
+
+def derived_path(*parts: str) -> str:
+    """Backward-compatible alias for the old helper name."""
+    return out_path(*parts)
 
 
 def precomputed_ica_path(filename: str) -> str:

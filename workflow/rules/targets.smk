@@ -25,8 +25,8 @@ def _continuous_feature_targets(desc: str):
     targets = []
     for subject, task, run in VALID_SUBJECT_TASK_RUNS:
         stem = f"{subject}_task-{task}_run-{run}_desc-{desc}_feature"
-        targets.append(derived_path("features", "continuous", desc, f"{stem}.npy"))
-        targets.append(derived_path("features", "continuous", desc, f"{stem}.json"))
+        targets.append(out_path("features", "continuous", desc, f"{stem}.npy"))
+        targets.append(out_path("features", "continuous", desc, f"{stem}.json"))
     return targets
 
 
@@ -34,30 +34,30 @@ def _event_feature_targets(desc: str):
     targets = []
     for subject, task, run in VALID_SUBJECT_TASK_RUNS:
         stem = f"{subject}_task-{task}_run-{run}_desc-{desc}_features"
-        targets.append(derived_path("features", "events", desc, f"{stem}.tsv"))
-        targets.append(derived_path("features", "events", desc, f"{stem}.json"))
+        targets.append(out_path("features", "events", desc, f"{stem}.tsv"))
+        targets.append(out_path("features", "events", desc, f"{stem}.json"))
     return targets
 
 
 def _trf_targets():
-    if not bool(config.get("paths", {}).get("results_root")):
+    if not bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
         return []
     targets = []
     for subject in SUBJECTS:
         task = "conversation"
         if task not in TASKS:
             continue
-        targets.append(results_path("trf", subject, f"task-{task}", "fold_scores.json"))
-        targets.append(results_path("trf", subject, f"task-{task}", "selected_alpha_per_fold.json"))
-        targets.append(results_path("trf", subject, f"task-{task}", "coefficients.npz"))
-        targets.append(results_path("trf", subject, f"task-{task}", "design_info.json"))
+        targets.append(out_path("trf", subject, f"task-{task}", "fold_scores.json"))
+        targets.append(out_path("trf", subject, f"task-{task}", "selected_alpha_per_fold.json"))
+        targets.append(out_path("trf", subject, f"task-{task}", "coefficients.npz"))
+        targets.append(out_path("trf", subject, f"task-{task}", "design_info.json"))
     return targets
 
 rule preprocessed_all:
     input:
         filter_non_existent(
             expand(
-                derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
+                out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,
@@ -70,7 +70,7 @@ rule downsample_all:
     input:
         filter_non_existent(
             expand(
-                derived_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif"),
+                out_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,
@@ -83,7 +83,7 @@ rule reref_all:
     input:
         filter_non_existent(
             expand(
-                derived_path(
+                out_path(
                     "eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
                 subject=SUBJECTS,
                 task=TASKS,
@@ -97,7 +97,7 @@ rule ica_all:
     input:
         filter_non_existent(
             expand(
-                derived_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"),
+                out_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,
@@ -111,7 +111,7 @@ rule interpolate_all:
     input:
         filter_non_existent(
             expand(
-                derived_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif"),
+                out_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,
@@ -124,7 +124,7 @@ rule filter_all:
     input:
         filter_non_existent(
             expand(
-                derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
+                out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,
@@ -137,7 +137,7 @@ rule metadata_all:
     input:
         filter_non_existent(
             expand(
-                derived_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
+                out_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,
@@ -180,7 +180,7 @@ rule epoch_all:
     input:
         filter_non_existent(
             expand(
-                derived_path("eeg", "epochs", "{subject}_task-{task}_run-{run}_epochs-epo.fif"),
+                out_path("eeg", "epochs", "{subject}_task-{task}_run-{run}_epochs-epo.fif"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,
@@ -190,7 +190,7 @@ rule epoch_all:
         )
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("results_root")):
+if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
     rule trf_all:
         input:
             _trf_targets()
@@ -198,16 +198,16 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
 
 rule canary_preprocessing:
     input:
-        ds=derived_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds.fif"),
-        filt=derived_path("eeg", "filtered", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_filt.fif"),
-        ica=derived_path("eeg", "ica_applied", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ica.fif"),
-        interp=derived_path("eeg", "interpolated", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_interp.fif"),
-        reref=derived_path("eeg", "reref", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_reref.fif"),
-        metadata=derived_path("beh", "metadata", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_metadata.tsv"),
-        events=derived_path("beh", "metadata", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_events.npy"),
-        epochs=derived_path("eeg", "epochs", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_epochs-epo.fif"),
+        ds=out_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds.fif"),
+        filt=out_path("eeg", "filtered", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_filt.fif"),
+        ica=out_path("eeg", "ica_applied", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ica.fif"),
+        interp=out_path("eeg", "interpolated", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_interp.fif"),
+        reref=out_path("eeg", "reref", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_reref.fif"),
+        metadata=out_path("beh", "metadata", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_metadata.tsv"),
+        events=out_path("beh", "metadata", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_events.npy"),
+        epochs=out_path("eeg", "epochs", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_epochs-epo.fif"),
     output:
-        done=derived_path("canary", "all.done")
+        done=out_path("canary", "all.done")
     shell:
         r"""
         mkdir -p "$(dirname {output.done})"

@@ -25,8 +25,8 @@ class ProjectPaths:
     ----------
     raw_root
         Root directory for raw input data.
-    derived_root
-        Root directory for derived intermediate data.
+    out_dir
+        Root directory for writable pipeline outputs and intermediate data.
     results_root
         Root directory for results (stats tables, cluster results, etc.).
     reports_root
@@ -40,7 +40,7 @@ class ProjectPaths:
     """
 
     raw_root: Path
-    derived_root: Path
+    out_dir: Path
     results_root: Path
     reports_root: Path
 
@@ -76,9 +76,15 @@ class ProjectPaths:
 
         # Cast values via str() first so YAML scalar types are handled
         # consistently even if users quote/unquote fields differently.
+        out_dir_value = paths_cfg.get("out_dir", paths_cfg.get("derived_root"))
+        if out_dir_value is None:
+            raise ValueError("Config paths must define 'out_dir'")
+
+        results_root_value = paths_cfg.get("results_root", out_dir_value)
+
         return ProjectPaths(
             raw_root=Path(str(raw_root_value)),
-            derived_root=Path(str(paths_cfg["derived_root"])),
-            results_root=Path(str(paths_cfg["results_root"])),
+            out_dir=Path(str(out_dir_value)),
+            results_root=Path(str(results_root_value)),
             reports_root=Path(str(paths_cfg["reports_root"])),
         )
