@@ -7,3 +7,20 @@ src/hyper.egg-info
 project_info.py
 project_snapshot.md
 data
+dev
+
+# Local environments and tool caches
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mne_test_home/
+.debug_runtime/
+
+# Packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# Generated documentation
+docs/_build/
+docs/_generated/
