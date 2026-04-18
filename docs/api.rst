@@ -19,5 +19,8 @@ usage of the pipeline modules.
    hyper.preprocessing.metadata
    hyper.preprocessing.epoching
    hyper.annotations.palign_core
+   hyper.features.linguistic
+   hyper.features.linguistic.pos
+   hyper.features.pipelines.linguistic
    hyper.cli.main
    hyper.testing.regression

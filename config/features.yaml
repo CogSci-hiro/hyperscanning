@@ -21,3 +21,11 @@ features:
     use_parselmouth: true
     language: null
     resource_root: null
+  stanza_pos:
+    enabled: true
+    language: "fr"
+    processors: "tokenize,pos,lemma"
+    resources_dir: null
+    allow_download: true
+    preserve_unmapped_rows: true
+    fail_on_mapping_error: false

@@ -22,7 +22,8 @@ rule downsample:
         eeg_edf=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_eeg.edf"),
         channels_tsv=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_channels.tsv")
     output:
-        out_fif=maybe_temp(out_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif"))
+        out_fif=maybe_temp(out_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds.fif")),
+        timing_json=out_path("eeg", "downsampled", "{subject}_task-{task}_run-{run}_raw_ds_timing.json")
     params:
         config_path = CONFIG_PATH,
         sfreq=float(config["eeg"]["sfreq_hz"]),

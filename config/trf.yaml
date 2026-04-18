@@ -3,6 +3,20 @@ trf:
   predictors:
     - self_speech_envelope
     - other_speech_envelope
+    - self_f0
+    - other_f0
+    - self_f1_f2
+    - other_f1_f2
+    - self_phoneme_onsets
+    - other_phoneme_onsets
+    - self_syllable_onsets
+    - other_syllable_onsets
+    - self_token_onsets
+    - other_token_onsets
+    - self_surprisal
+    - other_surprisal
+    - self_entropy
+    - other_entropy
   target_sfreq: 64.0
   lags:
     tmin_seconds: -0.50
@@ -32,7 +46,7 @@ trf:
       num: 10
   model:
     estimator: ridge
-    fit_intercept: true
+    fit_intercept: false
     standardize_x: true
     standardize_y: true
   scoring:

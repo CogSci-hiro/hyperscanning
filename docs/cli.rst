@@ -17,6 +17,7 @@ Subcommands
 - ``filter``: ``raw_interp.fif`` to ``raw_filt.fif``
 - ``metadata``: IPU annotations + ``raw_filt.fif`` to metadata TSV + events NPY
 - ``epoch``: ``raw_filt.fif`` + events + metadata to epochs FIF
+- ``pos-tags``: aligned token CSV to token-level POS/XPOS/morph TSV + JSON sidecar
 
 These commands are invoked by Snakemake rules in
-``workflow/rules/preprocessing.smk``.
+``workflow/rules/preprocessing.smk`` and ``workflow/rules/features.smk``.

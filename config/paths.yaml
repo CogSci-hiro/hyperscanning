@@ -1,7 +1,7 @@
 paths:
   bids_root: "/Users/hiro/Datasets/hyperscanning-bids"
   out_dir: "/Users/hiro/Datasets/working/hyperscanning-derived"
-  lm_feature_root: "/Users/hiro/Datasets/working/hyperscanning-lm-derived"
+  lm_feature_root: "/Users/hiro/Datasets/converted_lm_features"
   results_root: "/Users/hiro/Datasets/working/hyperscanning-results"
   reports_root: "/Users/hiro/Datasets/working/hyperscanning-reports"
   precomputed_ica_root: "/Users/hiro/Datasets/working/hyperscanning/precomputed_ica"

@@ -45,6 +45,7 @@ _COMMANDS: dict[str, str | CliCommand] = {
     "acoustic-formants": "hyper.cli.commands.features.formants",
     "alignment-events": "hyper.cli.commands.features.alignment_events",
     "token-events": "hyper.cli.commands.features.tokens",
+    "pos-tags": "hyper.cli.commands.features.pos",
     "trf": "hyper.cli.commands.trf",
     "trf-kernel-qc": "hyper.cli.commands.trf_qc",
     "trf-alpha-qc": "hyper.cli.commands.trf_alpha_qc",

@@ -56,6 +56,8 @@ def _trf_targets():
         task = "conversation"
         if task not in TASKS:
             continue
+        if not _trf_subject_has_eligible_run(subject, task):
+            continue
         targets.append(out_path("trf", subject, f"task-{task}", "fold_scores.json"))
         targets.append(out_path("trf", subject, f"task-{task}", "selected_alpha_per_fold.json"))
         targets.append(out_path("trf", subject, f"task-{task}", "coefficients.npz"))
@@ -183,6 +185,12 @@ rule syllable_onsets_all:
 rule token_onsets_all:
     input:
         _event_feature_targets("tokens")
+
+
+if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)):
+    rule token_pos_all:
+        input:
+            _event_feature_targets("pos")
 
 
 rule epoch_all:

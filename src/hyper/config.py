@@ -114,6 +114,28 @@ def _merge_named_sections(external: Mapping[str, Any], base: Mapping[str, Any], 
     return merged
 
 
+def _merge_named_sections_external_precedence(
+    external: Mapping[str, Any],
+    base: Mapping[str, Any],
+    section_names: tuple[str, ...],
+) -> Dict[str, Any]:
+    """Merge selected top-level mapping sections, with external values taking precedence."""
+    merged: Dict[str, Any] = dict(base)
+    for section_name in section_names:
+        external_section = external.get(section_name, {})
+        base_section = base.get(section_name, {})
+        if isinstance(external_section, Mapping) or isinstance(base_section, Mapping):
+            merged[section_name] = {
+                **(dict(base_section) if isinstance(base_section, Mapping) else {}),
+                **(dict(external_section) if isinstance(external_section, Mapping) else {}),
+            }
+    for key, value in external.items():
+        if key in section_names and key in merged:
+            continue
+        merged.setdefault(key, value)
+    return merged
+
+
 def load_raw_project_config(config_path: Path) -> Dict[str, Any]:
     """Load config YAML and merge optional sibling config fragments."""
     config_path = Path(config_path)
@@ -133,7 +155,7 @@ def load_raw_project_config(config_path: Path) -> Dict[str, Any]:
     trf_path = config_path.with_name("trf.yaml")
     if trf_path.exists():
         external = _load_yaml_mapping(trf_path)
-        merged = _merge_named_sections(external, merged, ("trf",))
+        merged = _merge_named_sections_external_precedence(external, merged, ("trf",))
 
     paths_path = config_path.with_name("paths.yaml")
     if paths_path.exists():

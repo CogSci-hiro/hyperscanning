@@ -21,6 +21,7 @@ dependencies = [
   "pyyaml",
   "scikit-learn",
   "snakemake",
+  "stanza>=1.11.1",
   "spyeeg",
   "tqdm==4.67.1",
   "voxatlas>=0.1.1"

@@ -110,3 +110,35 @@ def test_load_project_config_merges_sibling_trf_yaml(tmp_path: Path) -> None:
     assert cfg.raw["trf"]["enabled"] is True
     assert cfg.raw["trf"]["target_sfreq"] == 64
     assert cfg.raw["trf"]["predictors"] == ["self_speech_envelope", "other_speech_envelope"]
+
+
+def test_load_project_config_prefers_sibling_trf_over_inline_trf(tmp_path: Path) -> None:
+    """Dedicated `trf.yaml` should override stale inline TRF defaults."""
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text(
+        "trf:\n"
+        "  enabled: true\n"
+        "  predictors:\n"
+        "    - self_speech_envelope\n"
+        "    - other_speech_envelope\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "trf.yaml").write_text(
+        "trf:\n"
+        "  predictors:\n"
+        "    - self_speech_envelope\n"
+        "    - other_speech_envelope\n"
+        "    - self_f0\n"
+        "    - other_f0\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_project_config(cfg_path)
+
+    assert cfg.raw["trf"]["enabled"] is True
+    assert cfg.raw["trf"]["predictors"] == [
+        "self_speech_envelope",
+        "other_speech_envelope",
+        "self_f0",
+        "other_f0",
+    ]

@@ -35,6 +35,17 @@ def _merge_mapping_sections(external: dict, base: dict, *, sections: tuple[str, 
     return merged
 
 
+def _merge_mapping_sections_external_precedence(external: dict, base: dict, *, sections: tuple[str, ...]) -> dict:
+    merged = dict(base)
+    for section in sections:
+        merged[section] = {**dict(base.get(section, {})), **dict(external.get(section, {}))}
+    for key, value in external.items():
+        if key in sections:
+            continue
+        merged.setdefault(key, value)
+    return merged
+
+
 _preprocessing_config_path = Path(CONFIG_PATH).with_name("preprocessing.yaml")
 if _preprocessing_config_path.exists():
     _preprocessing_cfg = _load_yaml_mapping(_preprocessing_config_path)
@@ -48,7 +59,7 @@ if _features_config_path.exists():
 _trf_config_path = Path(CONFIG_PATH).with_name("trf.yaml")
 if _trf_config_path.exists():
     _trf_cfg = _load_yaml_mapping(_trf_config_path)
-    config.update(_merge_mapping_sections(_trf_cfg, config, sections=("trf",)))
+    config.update(_merge_mapping_sections_external_precedence(_trf_cfg, config, sections=("trf",)))
 
 _paths_config_path = Path(CONFIG_PATH).with_name("paths.yaml")
 if _paths_config_path.exists():

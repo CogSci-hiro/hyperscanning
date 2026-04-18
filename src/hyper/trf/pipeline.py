@@ -39,7 +39,16 @@ class PredictorSpec:
     descriptor: str
     dirname: str
     role: str
-    column_name: str | None = None
+    path_root: str = "out"
+    onset_column: str | None = None
+    value_columns: tuple[str, ...] = ()
+    aligned_to_conversation: bool = True
+
+
+PREDICTOR_ALIASES: dict[str, tuple[str, ...]] = {
+    "self_f1_f2": ("self_f1", "self_f2"),
+    "other_f1_f2": ("other_f1", "other_f2"),
+}
 
 
 PREDICTOR_SPECS: dict[str, PredictorSpec] = {
@@ -52,10 +61,120 @@ PREDICTOR_SPECS: dict[str, PredictorSpec] = {
     "f0": PredictorSpec("continuous", "self_f0", "f0", "self"),
     "self_f0": PredictorSpec("continuous", "self_f0", "f0", "self"),
     "other_f0": PredictorSpec("continuous", "other_f0", "f0", "other"),
-    "self_surprisal": PredictorSpec("event", "lmSurprisal", "lm_surprisal", "self", column_name="surprisal"),
-    "other_surprisal": PredictorSpec("event", "lmSurprisal", "lm_surprisal", "other", column_name="surprisal"),
-    "self_entropy": PredictorSpec("event", "lmShannonEntropy", "lm_shannon_entropy", "self", column_name="entropy"),
-    "other_entropy": PredictorSpec("event", "lmShannonEntropy", "lm_shannon_entropy", "other", column_name="entropy"),
+    "self_f1": PredictorSpec(
+        "event",
+        "self_vowels",
+        "vowels",
+        "self",
+        onset_column="onset_seconds",
+        value_columns=("f1_median_hz",),
+    ),
+    "other_f1": PredictorSpec(
+        "event",
+        "other_vowels",
+        "vowels",
+        "other",
+        onset_column="onset_seconds",
+        value_columns=("f1_median_hz",),
+    ),
+    "self_f2": PredictorSpec(
+        "event",
+        "self_vowels",
+        "vowels",
+        "self",
+        onset_column="onset_seconds",
+        value_columns=("f2_median_hz",),
+    ),
+    "other_f2": PredictorSpec(
+        "event",
+        "other_vowels",
+        "vowels",
+        "other",
+        onset_column="onset_seconds",
+        value_columns=("f2_median_hz",),
+    ),
+    "self_phoneme_onsets": PredictorSpec(
+        "event",
+        "self_phonemes",
+        "phonemes",
+        "self",
+        onset_column="onset_seconds",
+    ),
+    "other_phoneme_onsets": PredictorSpec(
+        "event",
+        "other_phonemes",
+        "phonemes",
+        "other",
+        onset_column="onset_seconds",
+    ),
+    "self_syllable_onsets": PredictorSpec(
+        "event",
+        "self_syllables",
+        "syllables",
+        "self",
+        onset_column="onset_seconds",
+    ),
+    "other_syllable_onsets": PredictorSpec(
+        "event",
+        "other_syllables",
+        "syllables",
+        "other",
+        onset_column="onset_seconds",
+    ),
+    "self_token_onsets": PredictorSpec(
+        "event",
+        "self_tokens",
+        "tokens",
+        "self",
+        onset_column="onset_seconds",
+    ),
+    "other_token_onsets": PredictorSpec(
+        "event",
+        "other_tokens",
+        "tokens",
+        "other",
+        onset_column="onset_seconds",
+    ),
+    "self_surprisal": PredictorSpec(
+        "event",
+        "lmSurprisal",
+        "lm_surprisal",
+        "self",
+        path_root="lm",
+        onset_column="onset",
+        value_columns=("surprisal",),
+        aligned_to_conversation=False,
+    ),
+    "other_surprisal": PredictorSpec(
+        "event",
+        "lmSurprisal",
+        "lm_surprisal",
+        "other",
+        path_root="lm",
+        onset_column="onset",
+        value_columns=("surprisal",),
+        aligned_to_conversation=False,
+    ),
+    "self_entropy": PredictorSpec(
+        "event",
+        "lmShannonEntropy",
+        "lm_shannon_entropy",
+        "self",
+        path_root="lm",
+        onset_column="onset",
+        value_columns=("entropy",),
+        aligned_to_conversation=False,
+    ),
+    "other_entropy": PredictorSpec(
+        "event",
+        "lmShannonEntropy",
+        "lm_shannon_entropy",
+        "other",
+        path_root="lm",
+        onset_column="onset",
+        value_columns=("entropy",),
+        aligned_to_conversation=False,
+    ),
 }
 
 
@@ -140,6 +259,17 @@ def _predictor_spec(predictor_name: str) -> PredictorSpec:
         raise ValueError(f"Unsupported TRF predictor: {predictor_name!r}") from exc
 
 
+def _expand_predictor_names(predictor_names: Sequence[str]) -> tuple[str, ...]:
+    """Expand configured predictor aliases into concrete TRF design columns."""
+    expanded: list[str] = []
+    for predictor_name in predictor_names:
+        resolved_names = PREDICTOR_ALIASES.get(str(predictor_name), (str(predictor_name),))
+        for resolved_name in resolved_names:
+            _predictor_spec(resolved_name)
+            expanded.append(resolved_name)
+    return tuple(expanded)
+
+
 def _run_stem(subject_id: str, task: str, run_id: str) -> str:
     """Return the canonical run stem used across derived paths."""
     return f"{subject_id}_task-{task}_run-{run_id}"
@@ -174,19 +304,29 @@ def _predictor_path(
 ) -> Path:
     """Return the stored predictor path for one run."""
     spec = _predictor_spec(predictor_name)
+    root = paths.out_dir if spec.path_root == "out" else paths.lm_feature_root
     if spec.storage_kind == "continuous":
         run_stem = _run_stem(subject_id, task, run_id)
-        return paths.out_dir / "features" / "continuous" / spec.dirname / f"{run_stem}_desc-{spec.descriptor}_feature.npy"
+        return root / "features" / "continuous" / spec.dirname / f"{run_stem}_desc-{spec.descriptor}_feature.npy"
     if spec.storage_kind == "event":
         storage_subject = subject_id if spec.role == "self" else _partner_subject_id(subject_id)
         run_stem = _run_stem(storage_subject, task, run_id)
-        return (
-            paths.lm_feature_root
+        canonical_path = root / "features" / "events" / spec.dirname / f"{run_stem}_desc-{spec.descriptor}_features.tsv"
+        if spec.path_root != "lm":
+            return canonical_path
+        if canonical_path.exists():
+            return canonical_path
+        session_glob = (
+            root
             / "features"
             / "events"
             / spec.dirname
-            / f"{run_stem}_desc-{spec.descriptor}_features.tsv"
+            / f"{storage_subject}_ses-*_task-{task}_run-{run_id}_desc-{spec.descriptor}_features.tsv"
         )
+        matches = sorted(session_glob.parent.glob(session_glob.name))
+        if len(matches) > 0:
+            return matches[0]
+        return canonical_path
     raise ValueError(f"Unsupported predictor storage kind: {spec.storage_kind!r}")
 
 
@@ -259,32 +399,52 @@ def _stack_predictors(predictor_paths: Sequence[Path]) -> np.ndarray:
 def _load_event_predictor(
     event_path: Path,
     *,
-    value_column: str,
+    onset_column: str | None,
+    value_columns: Sequence[str],
     target_sfreq: float,
     target_length: int,
-    conversation_start_seconds: float,
+    onset_offset_seconds: float,
 ) -> np.ndarray:
-    """Rasterize an event TSV into a single-sample impulse predictor."""
+    """Rasterize an event TSV into one or more single-sample event predictors."""
     table = pd.read_csv(event_path, sep="\t")
-    if "onset" not in table.columns:
-        raise ValueError(f"Event predictor table missing required 'onset' column: {event_path}")
-    if value_column not in table.columns:
-        raise ValueError(f"Event predictor table missing required {value_column!r} column: {event_path}")
+    resolved_onset_column = onset_column
+    if resolved_onset_column is None:
+        if "onset" in table.columns:
+            resolved_onset_column = "onset"
+        elif "onset_seconds" in table.columns:
+            resolved_onset_column = "onset_seconds"
+    if resolved_onset_column is None or resolved_onset_column not in table.columns:
+        raise ValueError(
+            f"Event predictor table missing required onset column {onset_column!r}: {event_path}"
+        )
 
-    onsets = pd.to_numeric(table["onset"], errors="coerce")
-    values = pd.to_numeric(table[value_column], errors="coerce")
-    valid = onsets.notna() & values.notna()
-    if not bool(valid.any()):
-        return np.zeros((target_length, 1), dtype=np.float32)
-
-    relative_onsets = onsets.loc[valid].to_numpy(dtype=float) - float(conversation_start_seconds)
-    amplitudes = values.loc[valid].to_numpy(dtype=np.float32)
+    onsets = pd.to_numeric(table[resolved_onset_column], errors="coerce")
+    relative_onsets = onsets.to_numpy(dtype=float) - float(onset_offset_seconds)
     sample_indices = np.rint(relative_onsets * float(target_sfreq)).astype(int)
     within_bounds = (sample_indices >= 0) & (sample_indices < int(target_length))
-    raster = np.zeros(int(target_length), dtype=np.float32)
-    if np.any(within_bounds):
-        np.add.at(raster, sample_indices[within_bounds], amplitudes[within_bounds])
-    return raster[:, np.newaxis]
+
+    if len(value_columns) == 0:
+        raster = np.zeros(int(target_length), dtype=np.float32)
+        valid = np.isfinite(relative_onsets) & within_bounds
+        if np.any(valid):
+            np.add.at(raster, sample_indices[valid], 1.0)
+        return raster[:, np.newaxis]
+
+    rasters: list[np.ndarray] = []
+    for value_column in value_columns:
+        if value_column not in table.columns:
+            raise ValueError(f"Event predictor table missing required {value_column!r} column: {event_path}")
+        values = pd.to_numeric(table[value_column], errors="coerce")
+        valid = onsets.notna() & values.notna() & within_bounds
+        raster = np.zeros(int(target_length), dtype=np.float32)
+        if bool(valid.any()):
+            np.add.at(
+                raster,
+                sample_indices[valid.to_numpy(dtype=bool)],
+                values.loc[valid].to_numpy(dtype=np.float32),
+            )
+        rasters.append(raster[:, np.newaxis])
+    return np.concatenate(rasters, axis=1)
 
 
 def _load_predictor_matrix(
@@ -312,21 +472,23 @@ def _load_predictor_matrix(
                 column = column[:, np.newaxis]
             column = _resample_array(column, source_sfreq=source_sfreq, target_sfreq=target_sfreq)
         elif spec.storage_kind == "event":
-            if spec.column_name is None:
-                raise ValueError(f"Event predictor {predictor_name!r} is missing a column_name.")
             column = _load_event_predictor(
                 predictor_path,
-                value_column=spec.column_name,
+                onset_column=spec.onset_column,
+                value_columns=spec.value_columns,
                 target_sfreq=target_sfreq,
                 target_length=target_length,
-                conversation_start_seconds=conversation_start_seconds,
+                onset_offset_seconds=0.0 if spec.aligned_to_conversation else conversation_start_seconds,
             )
         else:
             raise ValueError(f"Unsupported predictor storage kind: {spec.storage_kind!r}")
         columns.append(column.astype(np.float32, copy=False))
     if len(columns) == 0:
         raise ValueError("No predictor arrays were provided for TRF loading.")
-    return np.concatenate(columns, axis=1)
+    shared_length = min(target_length, *(column.shape[0] for column in columns))
+    if shared_length <= 0:
+        raise ValueError("Predictor loading produced an empty time axis.")
+    return np.concatenate([column[:shared_length] for column in columns], axis=1)
 
 
 def crop_target_to_conversation_window(
@@ -363,6 +525,7 @@ def load_trf_run_inputs(
 ) -> tuple[list[TrfRunInput], list[str]]:
     """Load all available continuous TRF runs for one subject."""
     trf_cfg = TrfConfig.from_mapping(cfg.raw.get("trf"))
+    resolved_predictor_names = _expand_predictor_names(trf_cfg.predictors)
     requested_run_ids = [str(run_id) for run_id in (run_ids or cfg.raw.get("runs", {}).get("include", {}).get(task, []))]
     loaded_runs: list[TrfRunInput] = []
     skipped_runs: list[str] = []
@@ -377,7 +540,7 @@ def load_trf_run_inputs(
         timing_path = _timing_sidecar_path(paths, subject_id=subject_id, task=task, run_id=run_id)
         predictor_paths = [
             _predictor_path(paths, subject_id=subject_id, task=task, run_id=run_id, predictor_name=name)
-            for name in trf_cfg.predictors
+            for name in resolved_predictor_names
         ]
 
         missing_paths = [path for path in [raw_path, timing_path, *predictor_paths] if not path.exists()]
@@ -418,7 +581,7 @@ def load_trf_run_inputs(
             target_sfreq=trf_cfg.target_sfreq,
         )
         aligned_predictors = _load_predictor_matrix(
-            predictor_names=trf_cfg.predictors,
+            predictor_names=resolved_predictor_names,
             predictor_paths=predictor_paths,
             paths=paths,
             subject_id=subject_id,
@@ -436,7 +599,7 @@ def load_trf_run_inputs(
                 subject_id=subject_id,
                 task=task,
                 run_id=str(run_id),
-                predictor_names=trf_cfg.predictors,
+                predictor_names=resolved_predictor_names,
                 predictor_values=aligned_predictors,
                 target_values=aligned_target,
                 sampling_rate_hz=float(trf_cfg.target_sfreq),
@@ -776,6 +939,7 @@ def run_trf_pipeline(
 ) -> TrfSubjectResult:
     """Run the subject-level TRF pipeline and persist configured outputs."""
     trf_cfg = TrfConfig.from_mapping(cfg.raw.get("trf"))
+    resolved_predictor_names = _expand_predictor_names(trf_cfg.predictors)
     paths = ProjectPaths.from_config(cfg)
     target_out_dir = out_dir or _default_output_dir(paths, subject_id=subject_id, task=task)
     target_out_dir.mkdir(parents=True, exist_ok=True)
@@ -828,7 +992,8 @@ def run_trf_pipeline(
             {
                 "subject_id": subject_id,
                 "task": task,
-                "predictors": list(trf_cfg.predictors),
+                "configured_predictors": list(trf_cfg.predictors),
+                "predictors": list(resolved_predictor_names),
                 "target_sfreq": trf_cfg.target_sfreq,
                 "lag_samples": lag_samples.tolist(),
                 "lag_seconds": (lag_samples[::-1] / trf_cfg.target_sfreq).tolist(),
@@ -852,7 +1017,7 @@ def run_trf_pipeline(
     return TrfSubjectResult(
         subject_id=subject_id,
         task=task,
-        predictor_names=trf_cfg.predictors,
+        predictor_names=resolved_predictor_names,
         lag_seconds=(lag_samples[::-1] / trf_cfg.target_sfreq).astype(np.float32),
         fold_results=tuple(fold_results),
         coefficient_paths=tuple(coefficient_paths),

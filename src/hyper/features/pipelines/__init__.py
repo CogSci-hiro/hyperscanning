@@ -4,12 +4,16 @@ from .acoustics import (
     load_audio_waveform,
     run_envelope_pipeline,
     run_pitch_pipeline,
+    run_token_event_pipeline,
     run_vowel_formant_pipeline,
 )
+from .linguistic import run_token_pos_pipeline
 
 __all__ = [
     "load_audio_waveform",
     "run_envelope_pipeline",
     "run_pitch_pipeline",
+    "run_token_event_pipeline",
+    "run_token_pos_pipeline",
     "run_vowel_formant_pipeline",
 ]
