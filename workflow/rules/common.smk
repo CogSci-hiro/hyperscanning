@@ -215,6 +215,11 @@ def derived_path(*parts: str) -> str:
     return str(Path(config["paths"]["derived_root"]) / Path(*parts))
 
 
+def precomputed_ica_path(filename: str) -> str:
+    """Construct a path under the user-configurable precomputed ICA root."""
+    return str(Path(config["paths"]["precomputed_ica_root"]) / filename)
+
+
 def maybe_temp(path: str) -> str:
     """Wrap preprocess intermediates in Snakemake `temp(...)` when retention is disabled."""
     return path if PREPROCESSING_SAVE_INTERMEDIATES else temp(path)

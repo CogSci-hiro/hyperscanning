@@ -34,7 +34,7 @@ rule downsample:
         mem_mb=2_000
     shell:
         r"""
-        hyper downsample \
+        {HYPER_MODULE_CMD} downsample \
           --config {params.config_path} \
           --in-edf {input.eeg_edf} \
           --channels {input.channels_tsv} \
@@ -60,7 +60,7 @@ rule filter_raw:
         mem_mb=1_000
     shell:
         """
-        hyper filter \
+        {HYPER_MODULE_CMD} filter \
             --config {input.config} \
             --in-fif {input.raw_ds} \
             --l-freq {params.l_freq} \
@@ -76,7 +76,7 @@ rule filter_raw:
 rule ica_apply:
     input:
         raw_filt=derived_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
-        ica=derived_path("precomputed_ica", "{subject}_task-{task}-ica.fif"),
+        ica=precomputed_ica_path("{subject}_task-{task}-ica.fif"),
         config="config/config.yaml"
     output:
         raw_ica=maybe_temp(derived_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"))
@@ -84,7 +84,7 @@ rule ica_apply:
         CONDA_PY_ENV
     shell:
         """
-        hyper ica-apply \
+        {HYPER_MODULE_CMD} ica-apply \
             --config {input.config} \
             --in-fif {input.raw_filt} \
             --ica {input.ica} \
@@ -107,7 +107,7 @@ rule interpolate:
         CONDA_PY_ENV
     shell:
         """
-        hyper interpolate \
+        {HYPER_MODULE_CMD} interpolate \
             --config {input.config} \
             --in-fif {input.raw_ica} \
             --channels {input.channels} \
@@ -131,7 +131,7 @@ rule reref:
         CONDA_PY_ENV
     shell:
         """
-        hyper reref \
+        {HYPER_MODULE_CMD} reref \
             --config {input.config} \
             --in-fif {input.raw_interp} \
             --channels {input.channels} \
@@ -158,7 +158,7 @@ rule metadata:
         CONDA_PY_ENV
     shell:
         """
-        hyper metadata \
+        {HYPER_MODULE_CMD} metadata \
             --config {input.config} \
             --ipu {input.ipu} \
             --raw {input.raw} \
@@ -193,7 +193,7 @@ rule epoch:
         CONDA_PY_ENV
     shell:
         """
-        hyper epoch \
+        {HYPER_MODULE_CMD} epoch \
             --config {input.config} \
             --raw {input.raw} \
             --events {input.events} \

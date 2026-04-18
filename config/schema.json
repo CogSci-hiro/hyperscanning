@@ -8,6 +8,7 @@
       "properties": {
         "bids_root": {"type": "string", "minLength": 1},
         "derived_root": {"type": "string", "minLength": 1},
+        "precomputed_ica_root": {"type": "string", "minLength": 1},
         "annotation_root": {"type": "string", "minLength": 1}
       },
       "additionalProperties": true

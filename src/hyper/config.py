@@ -67,6 +67,44 @@ class ProjectConfig:
 #                               IO / PLOTTING
 # ==================================================================================================
 
+def _load_yaml_mapping(path: Path) -> Dict[str, Any]:
+    """Load one YAML file and require a top-level mapping."""
+    with path.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    if data is None:
+        return {}
+    if not isinstance(data, Mapping):
+        raise ValueError(f"Config must be a mapping at top-level, got: {type(data)}")
+    return dict(data)
+
+
+def _merge_path_sections(external: Mapping[str, Any], base: Mapping[str, Any]) -> Dict[str, Any]:
+    """Merge `paths` mappings with base config taking precedence."""
+    merged: Dict[str, Any] = dict(external)
+    external_paths = external.get("paths", {})
+    base_paths = base.get("paths", {})
+    if isinstance(external_paths, Mapping) or isinstance(base_paths, Mapping):
+        merged["paths"] = {
+            **(dict(external_paths) if isinstance(external_paths, Mapping) else {}),
+            **(dict(base_paths) if isinstance(base_paths, Mapping) else {}),
+        }
+    for key, value in base.items():
+        if key == "paths" and "paths" in merged:
+            continue
+        merged[key] = value
+    return merged
+
+
+def load_raw_project_config(config_path: Path) -> Dict[str, Any]:
+    """Load config YAML and merge an optional sibling `paths.yaml` file."""
+    base = _load_yaml_mapping(config_path)
+    paths_path = config_path.with_name("paths.yaml")
+    if paths_path.exists():
+        external = _load_yaml_mapping(paths_path)
+        return _merge_path_sections(external, base)
+    return base
+
 def load_project_config(config_path: Path) -> ProjectConfig:
     """
     Load YAML config into a ProjectConfig object.
@@ -86,10 +124,4 @@ def load_project_config(config_path: Path) -> ProjectConfig:
         cfg = load_project_config(Path("config/config.yaml"))
         print(cfg.raw["project"]["name"])
     """
-    with config_path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-
-    if not isinstance(data, Mapping):
-        raise ValueError(f"Config must be a mapping at top-level, got: {type(data)}")
-
-    return ProjectConfig(raw=dict(data))
+    return ProjectConfig(raw=load_raw_project_config(config_path))

@@ -29,3 +29,37 @@ def test_load_project_config_rejects_non_mapping_top_level(tmp_path: Path) -> No
 
     with pytest.raises(ValueError, match="Config must be a mapping"):
         load_project_config(cfg_path)
+
+
+def test_load_project_config_merges_sibling_paths_yaml(tmp_path: Path) -> None:
+    """Sibling `paths.yaml` should supply machine-local path settings."""
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
+    (tmp_path / "paths.yaml").write_text(
+        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  precomputed_ica_root: /ica\n  annotation_root: /ann\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_project_config(cfg_path)
+
+    assert cfg.raw["paths"]["bids_root"] == "/bids"
+    assert cfg.raw["paths"]["precomputed_ica_root"] == "/ica"
+
+
+def test_load_project_config_prefers_inline_paths_over_sibling_paths_yaml(tmp_path: Path) -> None:
+    """Temporary or test configs should be able to override the shared paths file."""
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text(
+        "paths:\n  derived_root: /override\n  precomputed_ica_root: /override-ica\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "paths.yaml").write_text(
+        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  precomputed_ica_root: /ica\n  annotation_root: /ann\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_project_config(cfg_path)
+
+    assert cfg.raw["paths"]["bids_root"] == "/bids"
+    assert cfg.raw["paths"]["derived_root"] == "/override"
+    assert cfg.raw["paths"]["precomputed_ica_root"] == "/override-ica"

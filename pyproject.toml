@@ -20,7 +20,8 @@ dependencies = [
   "pytest>=7.4",
   "pyyaml",
   "snakemake",
-  "tqdm==4.67.1"
+  "tqdm==4.67.1",
+  "voxatlas"
 ]
 
 [project.optional-dependencies]

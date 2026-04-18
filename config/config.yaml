@@ -2,12 +2,6 @@
 project:
   name: "hyperscanning"
 
-paths:
-  # Set paths to local machine
-  bids_root: "/Users/hiro/Datasets/hyperscanning-bids"
-  derived_root: "/Users/hiro/Datasets/working/hyperscanning-derived"
-  annotation_root: "/Users/hiro/Projects/active/turn-taking/data/annotations"
-
 debug:
   enabled: false
   subjects: ["sub-006"]
@@ -53,7 +47,7 @@ min_response_duration: 0.01
 # Preprocessing ########################################################################################################
 
 preprocessing:
-  save_intermediates: true
+  save_intermediates: false
 
 # Interpolation
 interpolate:

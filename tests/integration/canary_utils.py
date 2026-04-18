@@ -12,6 +12,8 @@ from typing import Any
 import pytest
 import yaml
 
+from hyper.config import load_raw_project_config
+
 
 @dataclass(frozen=True, slots=True)
 class CanarySpec:
@@ -41,8 +43,7 @@ def prepare_canary_run(*, tmp_path: Path, spec: CanarySpec = CanarySpec()) -> Ca
     repo_root = Path(__file__).resolve().parents[2]
     base_cfg_path = repo_root / "config" / "config.yaml"
 
-    with base_cfg_path.open("r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
+    cfg = load_raw_project_config(base_cfg_path)
 
     bids_root = Path(cfg["paths"]["bids_root"])
     annotation_root = Path(cfg["paths"]["annotation_root"])
@@ -51,8 +52,7 @@ def prepare_canary_run(*, tmp_path: Path, spec: CanarySpec = CanarySpec()) -> Ca
     if not annotation_root.exists():
         pytest.skip(f"Annotation root not available on this machine: {annotation_root}")
 
-    original_derived = Path(cfg["paths"]["derived_root"])
-    source_ica = original_derived / "precomputed_ica" / f"{spec.subject}_task-{spec.task}-ica.fif"
+    source_ica = Path(cfg["paths"]["precomputed_ica_root"]) / f"{spec.subject}_task-{spec.task}-ica.fif"
     if not source_ica.exists():
         pytest.skip(f"Required precomputed ICA not found: {source_ica}")
 
@@ -65,6 +65,7 @@ def prepare_canary_run(*, tmp_path: Path, spec: CanarySpec = CanarySpec()) -> Ca
     shutil.copy2(source_ica, target_ica)
 
     cfg["paths"]["derived_root"] = str(derived_root)
+    cfg["paths"]["precomputed_ica_root"] = str(target_ica.parent)
     cfg["debug"]["enabled"] = True
     cfg["debug"]["subjects"] = [spec.subject]
     cfg["tasks"]["include"] = [spec.task]
