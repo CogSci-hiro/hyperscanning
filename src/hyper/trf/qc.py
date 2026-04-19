@@ -192,10 +192,14 @@ def _load_subject_predictor_names(
 
 
 def _single_predictor_cfg(cfg: ProjectConfig, predictor_name: str) -> ProjectConfig:
-    """Clone the project config and replace the TRF predictor list with one predictor."""
+    """Clone the project config and replace TRF predictors with one self-consistent predictor."""
     raw = deepcopy(cfg.raw)
     trf_cfg = dict(raw.get("trf", {}))
-    trf_cfg["predictors"] = [str(predictor_name)]
+    predictor = str(predictor_name)
+    trf_cfg["predictors"] = [predictor]
+    trf_cfg["qc_predictors"] = [predictor]
+    # Alpha QC fits a standalone single-predictor model, so feature ablations do not apply.
+    trf_cfg["ablation_targets"] = []
     raw["trf"] = trf_cfg
     return ProjectConfig(raw=raw)
 

@@ -18,3 +18,5 @@ viz:
     figsize:
       width: 13.0
       height: 4.5
+    plotted_features:
+      other_speech_envelope: envelope

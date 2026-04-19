@@ -4,19 +4,19 @@ trf:
     - self_speech_envelope
     - other_speech_envelope
     #- self_f0
-    #- other_f0
+    - other_f0
     #- self_f1_f2
-    #- other_f1_f2
+    - other_f1_f2
     #- self_phoneme_onsets
-    #- other_phoneme_onsets
+    - other_phoneme_onsets
     #- self_syllable_onsets
-    #- other_syllable_onsets
+    - other_syllable_onsets
     #- self_token_onsets
-    #- other_token_onsets
+    - other_token_onsets
     #- self_surprisal
-    #- other_surprisal
+    - other_surprisal
     #- self_entropy
-    #- other_entropy
+    - other_entropy
   qc_predictors:
     - self_speech_envelope
     - other_speech_envelope
@@ -52,8 +52,8 @@ trf:
     alpha:
       scale: logspace
       start_exp: -1
-      stop_exp: 8
-      num: 10
+      stop_exp: 2
+      num: 3
   model:
     estimator: ridge
     fit_intercept: false

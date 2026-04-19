@@ -7,14 +7,15 @@
 # 1) downsample     : raw EDF → raw_ds.fif (channel typing + EEG-only selection + montage + bads)
 # 2) reref          : raw_ds.fif → raw_reref.fif
 # 3) apply_ica      : raw_reref.fif + precomputed ICA → raw_ica.fif
-# 4) interpolate    : raw_ica.fif + channels.tsv → raw_interp.fif
-# 5) filter_raw     : raw_interp.fif → raw_filt.fif (final continuous preprocessed EEG)
-# 6) no-ICA branch  : raw_reref.fif → raw_interp_noica.fif → raw_filt_noica.fif
+# 4) interpolate    : raw_ica.fif + channels.tsv → raw_interp.fif (persistent pre-bandpass endpoint)
+# 5) no-ICA branch  : raw_reref.fif + channels.tsv → raw_interp_noica.fif (persistent pre-bandpass endpoint)
+# 6) filter_raw     : raw_interp.fif → raw_filt.fif (additional band-pass step for TRF/downstream modeling)
+# 7) filter_noica   : raw_interp_noica.fif → raw_filt_noica.fif
 #
 # Notes
 # -----
 # - "bids_path(...)" always refers to raw, immutable inputs.
-# - "out_path(...)" are regenerable intermediate outputs.
+# - Pre-bandpass interpolated outputs are kept on disk because reports/QC depend on them directly.
 # - Downsampling is placed first to reduce compute/memory for all downstream steps.
 #
 
@@ -112,7 +113,7 @@ rule interpolate:
         raw_ica=out_path("eeg", "ica_applied", "{subject}_task-{task}_run-{run}_raw_ica.fif"),
         channels=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_channels.tsv")
     output:
-        raw_interp=maybe_temp(out_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif"))
+        raw_interp=out_path("eeg", "interpolated", "{subject}_task-{task}_run-{run}_raw_interp.fif")
     params:
         config_path=str(ACTIVE_CONFIG_PATH),
         config_signature=lambda wildcards: _config_signature(
@@ -137,7 +138,7 @@ rule interpolate_noica:
         raw_reref=out_path("eeg", "reref", "{subject}_task-{task}_run-{run}_raw_reref.fif"),
         channels=bids_path("{subject}", "eeg", "{subject}_task-{task}_run-{run}_channels.tsv")
     output:
-        raw_interp=maybe_temp(out_path("eeg", "interpolated_noica", "{subject}_task-{task}_run-{run}_raw_interp_noica.fif"))
+        raw_interp=out_path("eeg", "interpolated_noica", "{subject}_task-{task}_run-{run}_raw_interp_noica.fif")
     params:
         config_path=str(ACTIVE_CONFIG_PATH),
         config_signature=lambda wildcards: _config_signature(
@@ -158,7 +159,7 @@ rule interpolate_noica:
 
 
 # =============================================================================
-# Final band-pass filtering
+# Additional band-pass filtering for TRF/downstream modeling
 # =============================================================================
 
 rule filter_raw:
