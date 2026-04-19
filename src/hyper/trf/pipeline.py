@@ -23,7 +23,7 @@ from tqdm.auto import tqdm
 
 from hyper.config import ProjectConfig
 from hyper.paths import ProjectPaths
-from hyper.trf.config import DEFAULT_TRF_TASK, TrfConfig
+from hyper.trf.config import DEFAULT_TRF_TASK, TrfConfig, resolve_ablation_target_members
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +58,7 @@ class PredictorSpec:
     onset_column: str | None = None
     value_columns: tuple[str, ...] = ()
     aligned_to_conversation: bool = True
+    component_predictors: tuple[str, ...] = ()
 
 
 PREDICTOR_ALIASES: dict[str, tuple[str, ...]] = {
@@ -149,6 +150,63 @@ PREDICTOR_SPECS: dict[str, PredictorSpec] = {
         "tokens",
         "other",
         onset_column="onset_seconds",
+    ),
+    "self_function_word_onsets": PredictorSpec(
+        "event",
+        "self_function_words",
+        "function_words",
+        "self",
+        onset_column="onset_seconds",
+    ),
+    "other_function_word_onsets": PredictorSpec(
+        "event",
+        "other_function_words",
+        "function_words",
+        "other",
+        onset_column="onset_seconds",
+    ),
+    "self_content_word_onsets": PredictorSpec(
+        "event",
+        "self_content_words",
+        "content_words",
+        "self",
+        onset_column="onset_seconds",
+    ),
+    "other_content_word_onsets": PredictorSpec(
+        "event",
+        "other_content_words",
+        "content_words",
+        "other",
+        onset_column="onset_seconds",
+    ),
+    "self_word_class_onsets": PredictorSpec(
+        "event",
+        "self_word_class_onsets",
+        "word_class_onsets",
+        "self",
+        onset_column="onset_seconds",
+        component_predictors=("self_function_word_onsets", "self_content_word_onsets"),
+    ),
+    "other_word_class_onsets": PredictorSpec(
+        "event",
+        "other_word_class_onsets",
+        "word_class_onsets",
+        "other",
+        onset_column="onset_seconds",
+        component_predictors=("other_function_word_onsets", "other_content_word_onsets"),
+    ),
+    "word_class_onsets": PredictorSpec(
+        "event",
+        "word_class_onsets",
+        "word_class_onsets",
+        "self",
+        onset_column="onset_seconds",
+        component_predictors=(
+            "self_function_word_onsets",
+            "other_function_word_onsets",
+            "self_content_word_onsets",
+            "other_content_word_onsets",
+        ),
     ),
     "self_surprisal": PredictorSpec(
         "event",
@@ -296,14 +354,20 @@ def _expand_predictor_names(predictor_names: Sequence[str]) -> tuple[str, ...]:
 
 
 def build_reduced_predictor_list(predictor_names: Sequence[str], *, ablation_target: str) -> tuple[str, ...]:
-    """Return the configured predictor list with one ablation target removed."""
-    reduced = tuple(str(name) for name in predictor_names if str(name) != str(ablation_target))
-    if len(reduced) == len(tuple(str(name) for name in predictor_names)):
+    """Return the configured predictor list with one ablation target or group removed."""
+    predictor_names_tuple = tuple(str(name) for name in predictor_names)
+    removed_predictors = (
+        (str(ablation_target),)
+        if str(ablation_target) in predictor_names_tuple
+        else resolve_ablation_target_members(ablation_target)
+    )
+    reduced = tuple(name for name in predictor_names_tuple if name not in removed_predictors)
+    if len(reduced) == len(predictor_names_tuple):
         raise ValueError(
-            f"Cannot ablate predictor {ablation_target!r} because it is not present in {list(predictor_names)!r}."
+            f"Cannot ablate target {ablation_target!r} because none of {removed_predictors!r} are present in {list(predictor_names_tuple)!r}."
         )
     if len(reduced) == 0:
-        raise ValueError(f"Cannot ablate predictor {ablation_target!r} because the reduced model would be empty.")
+        raise ValueError(f"Cannot ablate target {ablation_target!r} because the reduced model would be empty.")
     return reduced
 
 
@@ -377,6 +441,30 @@ def _predictor_path(
             return matches[0]
         return canonical_path
     raise ValueError(f"Unsupported predictor storage kind: {spec.storage_kind!r}")
+
+
+def _predictor_paths(
+    paths: ProjectPaths,
+    *,
+    subject_id: str,
+    task: str,
+    run_id: str,
+    predictor_name: str,
+) -> tuple[Path, ...]:
+    """Return one or more stored predictor paths for a configured predictor."""
+    spec = _predictor_spec(predictor_name)
+    if spec.component_predictors:
+        return tuple(
+            _predictor_path(
+                paths,
+                subject_id=subject_id,
+                task=task,
+                run_id=run_id,
+                predictor_name=component_name,
+            )
+            for component_name in spec.component_predictors
+        )
+    return (_predictor_path(paths, subject_id=subject_id, task=task, run_id=run_id, predictor_name=predictor_name),)
 
 
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
@@ -516,7 +604,7 @@ def _load_event_predictor(
 def _load_predictor_matrix(
     *,
     predictor_names: Sequence[str],
-    predictor_paths: Sequence[Path],
+    predictor_paths: Sequence[Sequence[Path]],
     paths: ProjectPaths,
     subject_id: str,
     task: str,
@@ -529,28 +617,37 @@ def _load_predictor_matrix(
     """Load and align heterogeneous predictor families onto a shared TRF time base."""
     del paths, task, run_id
     columns: list[np.ndarray] = []
-    for predictor_name, predictor_path in zip(predictor_names, predictor_paths, strict=True):
+    for predictor_name, predictor_path_group in zip(predictor_names, predictor_paths, strict=True):
         spec = _predictor_spec(predictor_name)
         if spec.storage_kind == "continuous":
+            predictor_path = Path(predictor_path_group[0])
             values = np.load(predictor_path)
             column = np.asarray(values, dtype=np.float32)
             if column.ndim == 1:
                 column = column[:, np.newaxis]
             column = _resample_array(column, source_sfreq=source_sfreq, target_sfreq=target_sfreq)
         elif spec.storage_kind == "event":
-            expected_speaker = None
-            if spec.path_root == "lm":
-                storage_subject = _partner_subject_id(subject_id) if spec.role == "other" else subject_id
-                expected_speaker = _speaker_for_subject_id(storage_subject)
-            column = _load_event_predictor(
-                predictor_path,
-                onset_column=spec.onset_column,
-                value_columns=spec.value_columns,
-                target_sfreq=target_sfreq,
-                target_length=target_length,
-                onset_offset_seconds=0.0 if spec.aligned_to_conversation else conversation_start_seconds,
-                expected_speaker=expected_speaker,
-            )
+            component_columns: list[np.ndarray] = []
+            for predictor_path in predictor_path_group:
+                expected_speaker = None
+                if spec.path_root == "lm":
+                    storage_subject = _partner_subject_id(subject_id) if spec.role == "other" else subject_id
+                    expected_speaker = _speaker_for_subject_id(storage_subject)
+                component_columns.append(
+                    _load_event_predictor(
+                        Path(predictor_path),
+                        onset_column=spec.onset_column,
+                        value_columns=spec.value_columns,
+                        target_sfreq=target_sfreq,
+                        target_length=target_length,
+                        onset_offset_seconds=0.0 if spec.aligned_to_conversation else conversation_start_seconds,
+                        expected_speaker=expected_speaker,
+                    )
+                )
+            if len(component_columns) == 1:
+                column = component_columns[0]
+            else:
+                column = np.sum(np.stack(component_columns, axis=0), axis=0, dtype=np.float32)
         else:
             raise ValueError(f"Unsupported predictor storage kind: {spec.storage_kind!r}")
         columns.append(column.astype(np.float32, copy=False))
@@ -612,11 +709,11 @@ def load_trf_run_inputs(
         raw_path = _filtered_raw_path(paths, subject_id=subject_id, task=task, run_id=run_id)
         timing_path = _timing_sidecar_path(paths, subject_id=subject_id, task=task, run_id=run_id)
         predictor_paths = [
-            _predictor_path(paths, subject_id=subject_id, task=task, run_id=run_id, predictor_name=name)
+            _predictor_paths(paths, subject_id=subject_id, task=task, run_id=run_id, predictor_name=name)
             for name in resolved_predictor_names
         ]
 
-        missing_paths = [path for path in [raw_path, timing_path, *predictor_paths] if not path.exists()]
+        missing_paths = [path for path in [raw_path, timing_path, *(path for group in predictor_paths for path in group)] if not path.exists()]
         if missing_paths:
             LOGGER.warning(
                 "Skipping TRF run %s %s run-%s because required inputs are missing: %s",

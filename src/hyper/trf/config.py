@@ -35,12 +35,48 @@ SUPPORTED_TRF_PREDICTORS: frozenset[str] = frozenset(
         "other_syllable_onsets",
         "self_token_onsets",
         "other_token_onsets",
+        "self_function_word_onsets",
+        "other_function_word_onsets",
+        "self_content_word_onsets",
+        "other_content_word_onsets",
+        "self_word_class_onsets",
+        "other_word_class_onsets",
+        "word_class_onsets",
         "self_entropy",
         "other_entropy",
         "self_surprisal",
         "other_surprisal",
     }
 )
+ABLATION_TARGET_GROUPS: dict[str, tuple[str, ...]] = {
+    "word_class_onsets": (
+        "self_function_word_onsets",
+        "other_function_word_onsets",
+        "self_content_word_onsets",
+        "other_content_word_onsets",
+    ),
+    "self_word_class_onsets": (
+        "self_function_word_onsets",
+        "self_content_word_onsets",
+    ),
+    "other_word_class_onsets": (
+        "other_function_word_onsets",
+        "other_content_word_onsets",
+    ),
+}
+SUPPORTED_TRF_ABLATION_TARGETS: frozenset[str] = frozenset(
+    set(SUPPORTED_TRF_PREDICTORS).union(ABLATION_TARGET_GROUPS.keys())
+)
+
+
+def resolve_ablation_target_members(ablation_target: str) -> tuple[str, ...]:
+    """Expand one ablation target alias into the predictor(s) it removes."""
+    target = str(ablation_target)
+    if target in ABLATION_TARGET_GROUPS:
+        return ABLATION_TARGET_GROUPS[target]
+    if target in SUPPORTED_TRF_PREDICTORS:
+        return (target,)
+    raise ValueError(f"Unsupported TRF ablation target: {ablation_target!r}")
 
 
 def _require_mapping(value: Any, *, name: str) -> Mapping[str, Any]:
@@ -251,13 +287,28 @@ class TrfConfig:
                 "TRF qc_predictors must be drawn from the supported predictor set "
                 f"{sorted(SUPPORTED_TRF_PREDICTORS)!r}; got unsupported predictors {unsupported_qc_predictors!r}."
             )
-        missing_ablation_targets = [name for name in self.ablation_targets if name not in self.predictors]
+        unsupported_ablation_targets = [name for name in self.ablation_targets if name not in SUPPORTED_TRF_ABLATION_TARGETS]
+        if unsupported_ablation_targets:
+            raise ValueError(
+                "TRF ablation_targets must be drawn from the supported predictor or ablation-group set "
+                f"{sorted(SUPPORTED_TRF_ABLATION_TARGETS)!r}; got unsupported targets {unsupported_ablation_targets!r}."
+            )
+        missing_ablation_targets = []
+        for name in self.ablation_targets:
+            if name in self.predictors:
+                continue
+            if any(member not in self.predictors for member in resolve_ablation_target_members(name)):
+                missing_ablation_targets.append(name)
         if missing_ablation_targets:
             raise ValueError(
-                "TRF ablation_targets must be drawn from trf.predictors; "
+                "TRF ablation_targets must resolve to members drawn from trf.predictors; "
                 f"got invalid targets {missing_ablation_targets!r} for predictors {list(self.predictors)!r}."
             )
-        empty_reduced_targets = [name for name in self.ablation_targets if len(self.predictors) == 1 and name in self.predictors]
+        empty_reduced_targets = [
+            name
+            for name in self.ablation_targets
+            if len(tuple(predictor for predictor in self.predictors if predictor not in resolve_ablation_target_members(name))) == 0
+        ]
         if empty_reduced_targets:
             raise ValueError(
                 "TRF ablation_targets cannot remove the only predictor from the full model; "

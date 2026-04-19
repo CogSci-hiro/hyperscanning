@@ -242,6 +242,18 @@ if bool(FEATURES.get("stanza_pos", {}).get("enabled", True)):
             _event_feature_targets("pos")
 
 
+if bool(FEATURES.get("stanza_pos", {}).get("enabled", True)):
+    rule function_word_onsets_all:
+        input:
+            _event_feature_targets("function_words")
+
+
+if bool(FEATURES.get("stanza_pos", {}).get("enabled", True)):
+    rule content_word_onsets_all:
+        input:
+            _event_feature_targets("content_words")
+
+
 if bool(FEATURES.get("stanza_pos", {}).get("enabled", True)) and len(_event_feature_targets("pos")) > 0:
     rule qc_pos_all:
         input:

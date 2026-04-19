@@ -20,3 +20,11 @@ viz:
       height: 4.5
     plotted_features:
       other_speech_envelope: envelope
+      other_f1_f2: vowel
+      other_f0: F0
+      other_phoneme_onsets: phoneme
+      other_syllable_onsets: syllable
+      other_token_onsets: words
+      other_surprisal: surprisal
+      other_entropy: entropy
+      other_word_class_onsets: POS

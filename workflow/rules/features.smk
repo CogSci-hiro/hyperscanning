@@ -41,6 +41,10 @@ def _trf_predictor_spec(predictor_name, subject, task, run):
         "other_syllable_onsets": ("event", out_path, subject, "syllables", "other_syllables"),
         "self_token_onsets": ("event", out_path, subject, "tokens", "self_tokens"),
         "other_token_onsets": ("event", out_path, subject, "tokens", "other_tokens"),
+        "self_function_word_onsets": ("event", out_path, subject, "function_words", "self_function_words"),
+        "other_function_word_onsets": ("event", out_path, subject, "function_words", "other_function_words"),
+        "self_content_word_onsets": ("event", out_path, subject, "content_words", "self_content_words"),
+        "other_content_word_onsets": ("event", out_path, subject, "content_words", "other_content_words"),
         "self_surprisal": ("event", lm_feature_path, subject, "lm_surprisal", "lmSurprisal"),
         "other_surprisal": ("event", lm_feature_path, _partner_subject(subject), "lm_surprisal", "lmSurprisal"),
         "self_entropy": ("event", lm_feature_path, subject, "lm_shannon_entropy", "lmShannonEntropy"),
@@ -88,16 +92,34 @@ def _trf_predictor_input_path(predictor_name, subject, task, run):
     return storage_kind, root_fn, path
 
 
+def _trf_predictor_input_paths(predictor_name, subject, task, run):
+    composite_predictors = {
+        "self_word_class_onsets": ("self_function_word_onsets", "self_content_word_onsets"),
+        "other_word_class_onsets": ("other_function_word_onsets", "other_content_word_onsets"),
+        "word_class_onsets": (
+            "self_function_word_onsets",
+            "other_function_word_onsets",
+            "self_content_word_onsets",
+            "other_content_word_onsets",
+        ),
+    }
+    component_names = composite_predictors.get(predictor_name, (predictor_name,))
+    return [
+        _trf_predictor_input_path(component_name, subject, task, run)
+        for component_name in component_names
+    ]
+
+
 def _trf_run_is_externally_available(subject, task, run, predictor_names):
     for predictor_name in predictor_names:
-        _storage_kind, root_fn, predictor_path = _trf_predictor_input_path(
+        for _storage_kind, root_fn, predictor_path in _trf_predictor_input_paths(
             predictor_name,
             subject,
             task,
             run,
-        )
-        if root_fn is lm_feature_path and not Path(predictor_path).exists():
-            return False
+        ):
+            if root_fn is lm_feature_path and not Path(predictor_path).exists():
+                return False
     return True
 
 
@@ -469,6 +491,74 @@ rule token_pos:
             --out-sidecar {output.other_sidecar}
         """
 
+if bool(FEATURES.get("stanza_pos", {}).get("enabled", True)):
+    rule word_class_onsets:
+        input:
+            self_pos=out_path("features", "events", "pos", "{subject}_task-{task}_run-{run}_desc-self_pos_features.tsv"),
+            other_pos=out_path("features", "events", "pos", "{subject}_task-{task}_run-{run}_desc-other_pos_features.tsv")
+        output:
+            self_function_table=out_path("features", "events", "function_words", "{subject}_task-{task}_run-{run}_desc-self_function_words_features.tsv"),
+            self_function_sidecar=out_path("features", "events", "function_words", "{subject}_task-{task}_run-{run}_desc-self_function_words_features.json"),
+            other_function_table=out_path("features", "events", "function_words", "{subject}_task-{task}_run-{run}_desc-other_function_words_features.tsv"),
+            other_function_sidecar=out_path("features", "events", "function_words", "{subject}_task-{task}_run-{run}_desc-other_function_words_features.json"),
+            self_content_table=out_path("features", "events", "content_words", "{subject}_task-{task}_run-{run}_desc-self_content_words_features.tsv"),
+            self_content_sidecar=out_path("features", "events", "content_words", "{subject}_task-{task}_run-{run}_desc-self_content_words_features.json"),
+            other_content_table=out_path("features", "events", "content_words", "{subject}_task-{task}_run-{run}_desc-other_content_words_features.tsv"),
+            other_content_sidecar=out_path("features", "events", "content_words", "{subject}_task-{task}_run-{run}_desc-other_content_words_features.json")
+        params:
+            config_path=str(ACTIVE_CONFIG_PATH),
+            config_signature=lambda wildcards: FEATURES_SIGNATURE,
+            other_subject=lambda wildcards: _partner_subject(wildcards.subject)
+        conda:
+            CONDA_PY_ENV
+        shell:
+            """
+            {HYPER_MODULE_CMD} word-class-events \
+                --config {params.config_path} \
+                --pos-features {input.self_pos} \
+                --subject {wildcards.subject} \
+                --run {wildcards.run} \
+                --word-class function \
+                --feature-name self_function_words \
+                --source-subject {wildcards.subject} \
+                --source-role self \
+                --out-tsv {output.self_function_table} \
+                --out-sidecar {output.self_function_sidecar}
+            {HYPER_MODULE_CMD} word-class-events \
+                --config {params.config_path} \
+                --pos-features {input.other_pos} \
+                --subject {params.other_subject} \
+                --run {wildcards.run} \
+                --word-class function \
+                --feature-name other_function_words \
+                --source-subject {params.other_subject} \
+                --source-role other \
+                --out-tsv {output.other_function_table} \
+                --out-sidecar {output.other_function_sidecar}
+            {HYPER_MODULE_CMD} word-class-events \
+                --config {params.config_path} \
+                --pos-features {input.self_pos} \
+                --subject {wildcards.subject} \
+                --run {wildcards.run} \
+                --word-class content \
+                --feature-name self_content_words \
+                --source-subject {wildcards.subject} \
+                --source-role self \
+                --out-tsv {output.self_content_table} \
+                --out-sidecar {output.self_content_sidecar}
+            {HYPER_MODULE_CMD} word-class-events \
+                --config {params.config_path} \
+                --pos-features {input.other_pos} \
+                --subject {params.other_subject} \
+                --run {wildcards.run} \
+                --word-class content \
+                --feature-name other_content_words \
+                --source-subject {params.other_subject} \
+                --source-role other \
+                --out-tsv {output.other_content_table} \
+                --out-sidecar {output.other_content_sidecar}
+            """
+
 
 def _pos_qc_feature_tables():
     inputs = []
@@ -544,13 +634,13 @@ def _trf_subject_inputs(wildcards):
             out_path("eeg", "downsampled", f"{wildcards.subject}_task-{wildcards.task}_run-{run}_raw_ds_timing.json")
         )
         for predictor_name in predictor_names:
-            _storage_kind, _root_fn, predictor_path = _trf_predictor_input_path(
+            for _storage_kind, _root_fn, predictor_path in _trf_predictor_input_paths(
                 predictor_name,
                 wildcards.subject,
                 wildcards.task,
                 run_str,
-            )
-            run_inputs.append(predictor_path)
+            ):
+                run_inputs.append(predictor_path)
     return run_inputs
 
 
@@ -610,15 +700,15 @@ def _trf_qc_score_table_inputs(_wildcards):
             inputs.append(out_path("eeg", "filtered", f"{subject}_task-{task}_run-{run}_raw_filt.fif"))
             inputs.append(out_path("eeg", "downsampled", f"{subject}_task-{task}_run-{run}_raw_ds_timing.json"))
             for predictor_name in predictor_names:
-                _storage_kind, root_fn, predictor_path = _trf_predictor_input_path(
+                for _storage_kind, root_fn, predictor_path in _trf_predictor_input_paths(
                     predictor_name,
                     subject,
                     task,
                     run_str,
-                )
-                if root_fn is lm_feature_path and not Path(predictor_path).exists():
-                    continue
-                inputs.append(predictor_path)
+                ):
+                    if root_fn is lm_feature_path and not Path(predictor_path).exists():
+                        continue
+                    inputs.append(predictor_path)
     return inputs
 
 
