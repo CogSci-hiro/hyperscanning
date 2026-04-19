@@ -57,6 +57,7 @@ PREPROCESSING = _load_section("preprocessing")
 FEATURES = _load_section("features")
 TRF = _load_section("trf", external_precedence=True)
 PATHS = _load_section("paths")
+VIZ = _load_section("viz")
 
 # In Snakefile (global)
 wildcard_constraints:
@@ -131,6 +132,7 @@ EPOCH_SETTINGS = {
 
 include: str(WORKFLOW_DIR / "rules" / "preprocessing.smk")
 include: str(WORKFLOW_DIR / "rules" / "features.smk")
+include: str(WORKFLOW_DIR / "rules" / "reports.smk")
 include: str(WORKFLOW_DIR / "rules" / "targets.smk")
 
 

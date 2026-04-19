@@ -281,6 +281,12 @@ rule epoch_noica_all:
         )
 
 
+rule main_figures_all:
+    input:
+        reports_path("figures", str(VIZ.get("speech_artefact", {}).get("filename", "speech_artefact_summary.png"))),
+        reports_path("figures", str(VIZ.get("trf_score", {}).get("filename", "trf_score_summary.png")))
+
+
 if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule trf_all:
         input:
@@ -307,11 +313,8 @@ if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("deri
 
 rule canary_preprocessing:
     input:
-        ds=out_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds.fif"),
+        ds_timing=out_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds_timing.json"),
         filt=out_path("eeg", "filtered", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_filt.fif"),
-        ica=out_path("eeg", "ica_applied", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ica.fif"),
-        interp=out_path("eeg", "interpolated", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_interp.fif"),
-        reref=out_path("eeg", "reref", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_reref.fif"),
         metadata=out_path("beh", "metadata", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_metadata.tsv"),
         events=out_path("beh", "metadata", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_events.npy"),
         epochs=out_path("eeg", "epochs", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_epochs-epo.fif"),
@@ -326,9 +329,7 @@ rule canary_preprocessing:
 
 rule canary_preprocessing_noica:
     input:
-        ds=out_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds.fif"),
-        reref=out_path("eeg", "reref", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_reref.fif"),
-        interp=out_path("eeg", "interpolated_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_interp_noica.fif"),
+        ds_timing=out_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds_timing.json"),
         filt=out_path("eeg", "filtered_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_filt_noica.fif"),
         metadata=out_path("beh", "metadata_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_metadata_noica.tsv"),
         events=out_path("beh", "metadata_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_events_noica.npy"),

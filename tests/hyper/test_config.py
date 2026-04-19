@@ -111,3 +111,18 @@ def test_load_project_config_rejects_unknown_requested_section(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="Unknown config sections requested"):
         load_project_config(cfg_path, sections=("bogus",))
+
+
+def test_load_project_config_loads_requested_viz_section(tmp_path: Path) -> None:
+    """Requested visualization fragments should be merged like other standard sections."""
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("viz:\n  figure_defaults:\n    dpi: 150\n", encoding="utf-8")
+    (tmp_path / "viz.yaml").write_text(
+        "viz:\n  speech_artefact:\n    dpi: 300\n    task: conversation\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_project_config(cfg_path, sections=("viz",))
+
+    assert cfg.raw["viz"]["figure_defaults"]["dpi"] == 150
+    assert cfg.raw["viz"]["speech_artefact"]["task"] == "conversation"

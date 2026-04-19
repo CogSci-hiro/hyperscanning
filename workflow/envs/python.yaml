@@ -12,6 +12,7 @@ dependencies:
   - pandas
   - mne
   - scikit-learn
+  - seaborn
 
   # File formats / I/O
   - pyarrow

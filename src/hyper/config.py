@@ -45,6 +45,7 @@ SECTION_FILE_NAMES: dict[str, str] = {
     "preprocessing": "preprocessing.yaml",
     "features": "features.yaml",
     "trf": "trf.yaml",
+    "viz": "viz.yaml",
 }
 
 

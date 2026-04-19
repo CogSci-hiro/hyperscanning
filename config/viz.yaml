@@ -1,0 +1,20 @@
+viz:
+  speech_artefact:
+    task: "conversation"
+    filename: "speech_artefact_summary.png"
+    dpi: 300
+    figsize:
+      width: 15.0
+      height: 4.5
+    psd:
+      method: "welch"
+      fmin_hz: 1.0
+      fmax_hz: 30.0
+      n_fft: 256
+  trf_score:
+    task: "conversation"
+    filename: "trf_score_summary.png"
+    dpi: 300
+    figsize:
+      width: 13.0
+      height: 4.5
