@@ -23,6 +23,7 @@ features:
     resource_root: null
   stanza_pos:
     enabled: true
+    show_progress: true
     language: "fr"
     processors: "tokenize,pos,lemma"
     resources_dir: null

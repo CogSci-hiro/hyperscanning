@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +31,19 @@ TRF_RESULTS_DIRNAME: str = "trf"
 TIMING_JSON_SUFFIX: str = "_raw_ds_timing.json"
 FILTERED_RAW_SUFFIX: str = "_raw_filt.fif"
 DEFAULT_JSON_INDENT: int = 2
+TRF_QC_DIRNAME: str = "trf_qc"
+TRF_EEG_QC_SCORES_FILENAME: str = "eeg_scores.tsv"
+TRF_FEATURE_QC_SCORES_FILENAME: str = "feature_scores.tsv"
+EEG_QC_NULL_SHIFT_PREDICTORS: frozenset[str] = frozenset(
+    {
+        "speech_envelope",
+        "envelope",
+        "self_speech_envelope",
+        "other_speech_envelope",
+        "self_envelope",
+        "other_envelope",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,6 +266,16 @@ class TrfSubjectResult:
     out_dir: Path
 
 
+@dataclass(frozen=True, slots=True)
+class TrfQcScoreSummary:
+    """Subject-level TRF score summary for one fitted model."""
+
+    subject_id: str
+    score: float
+    score_name: str
+    predictor_names: tuple[str, ...]
+
+
 def _predictor_spec(predictor_name: str) -> PredictorSpec:
     """Return the storage spec for one configured predictor."""
     try:
@@ -270,6 +293,18 @@ def _expand_predictor_names(predictor_names: Sequence[str]) -> tuple[str, ...]:
             _predictor_spec(resolved_name)
             expanded.append(resolved_name)
     return tuple(expanded)
+
+
+def build_reduced_predictor_list(predictor_names: Sequence[str], *, ablation_target: str) -> tuple[str, ...]:
+    """Return the configured predictor list with one ablation target removed."""
+    reduced = tuple(str(name) for name in predictor_names if str(name) != str(ablation_target))
+    if len(reduced) == len(tuple(str(name) for name in predictor_names)):
+        raise ValueError(
+            f"Cannot ablate predictor {ablation_target!r} because it is not present in {list(predictor_names)!r}."
+        )
+    if len(reduced) == 0:
+        raise ValueError(f"Cannot ablate predictor {ablation_target!r} because the reduced model would be empty.")
+    return reduced
 
 
 def _run_stem(subject_id: str, task: str, run_id: str) -> str:
@@ -558,10 +593,12 @@ def load_trf_run_inputs(
     subject_id: str,
     task: str = DEFAULT_TRF_TASK,
     run_ids: Sequence[str] | None = None,
+    predictor_names: Sequence[str] | None = None,
 ) -> tuple[list[TrfRunInput], list[str]]:
     """Load all available continuous TRF runs for one subject."""
     trf_cfg = TrfConfig.from_mapping(cfg.raw.get("trf"))
-    resolved_predictor_names = _expand_predictor_names(trf_cfg.predictors)
+    configured_predictor_names = tuple(str(name) for name in (predictor_names or trf_cfg.predictors))
+    resolved_predictor_names = _expand_predictor_names(configured_predictor_names)
     requested_run_ids = [str(run_id) for run_id in (run_ids or cfg.raw.get("runs", {}).get("include", {}).get(task, []))]
     loaded_runs: list[TrfRunInput] = []
     skipped_runs: list[str] = []
@@ -968,6 +1005,263 @@ def fit_nested_trf(
     return fold_results, coefficient_paths
 
 
+def prepare_trf_segment_designs(
+    run_inputs: Sequence[TrfRunInput],
+    *,
+    config: TrfConfig,
+) -> tuple[np.ndarray, list[TrfSegment], list[str], list[TrfLaggedSegmentDesign]]:
+    """Split run inputs into segments and build lag-safe designs."""
+    lag_samples = compute_lag_samples(
+        tmin_seconds=config.lags.tmin_seconds,
+        tmax_seconds=config.lags.tmax_seconds,
+        sampling_rate_hz=config.target_sfreq,
+    )
+    segments: list[TrfSegment] = []
+    skipped_segments: list[str] = []
+    for run_input in run_inputs:
+        run_segments, run_skipped_segments = split_run_into_segments(run_input, config)
+        segments.extend(run_segments)
+        skipped_segments.extend(run_skipped_segments)
+    if len(segments) == 0:
+        raise ValueError("No valid TRF segments were available.")
+    lagged_designs = [build_lagged_segment_design(segment, lag_samples) for segment in segments]
+    return lag_samples, segments, skipped_segments, lagged_designs
+
+
+def _mean_fold_score(fold_results: Sequence[TrfFoldResult]) -> float:
+    """Return the subject-level mean held-out score across outer folds."""
+    if len(fold_results) == 0:
+        raise ValueError("Cannot summarize an empty set of TRF fold results.")
+    return float(np.nanmean(np.asarray([result.score for result in fold_results], dtype=float)))
+
+
+def fit_subject_trf_score(
+    *,
+    run_inputs: Sequence[TrfRunInput],
+    config: TrfConfig,
+    subject_id: str,
+    task: str,
+    progress_label: str | None = None,
+) -> TrfQcScoreSummary:
+    """Fit one subject-level TRF model and summarize the held-out score."""
+    if len(run_inputs) == 0:
+        raise ValueError(f"No TRF runs could be loaded for {subject_id} task={task!r}.")
+    _, _, _, lagged_designs = prepare_trf_segment_designs(run_inputs, config=config)
+    fold_results, _ = fit_nested_trf(
+        lagged_designs,
+        config=config,
+        coefficient_path=None,
+        progress_label=progress_label,
+    )
+    return TrfQcScoreSummary(
+        subject_id=subject_id,
+        score=_mean_fold_score(fold_results),
+        score_name=config.scoring.primary,
+        predictor_names=run_inputs[0].predictor_names,
+    )
+
+
+def _make_run_seed(*, seed: int, subject_id: str, task: str, run_id: str) -> np.random.Generator:
+    """Derive a deterministic per-run RNG without crossing run boundaries."""
+    entropy = [int(seed), *f"{subject_id}:{task}:{run_id}".encode("utf-8")]
+    return np.random.default_rng(np.random.SeedSequence(entropy))
+
+
+def build_circular_shifted_eeg_qc_null_run_inputs(
+    run_inputs: Sequence[TrfRunInput],
+    *,
+    seed: int,
+) -> tuple[list[TrfRunInput], dict[str, int]]:
+    """Build a per-run circular-shift null after predictor alignment.
+
+    The shift is applied after predictor construction/resampling so the null keeps
+    the final EEG-aligned sampling grid, and each run is shifted independently to
+    avoid wrapping predictor values across run boundaries.
+    """
+    null_run_inputs: list[TrfRunInput] = []
+    shift_by_run: dict[str, int] = {}
+    for run_input in run_inputs:
+        shiftable_columns = [
+            index for index, name in enumerate(run_input.predictor_names) if name in EEG_QC_NULL_SHIFT_PREDICTORS
+        ]
+        if len(shiftable_columns) == 0:
+            raise ValueError(
+                "EEG QC requires at least one envelope predictor in qc_predictors so the null model can circularly "
+                f"shift it; got {list(run_input.predictor_names)!r}."
+            )
+        sample_count = int(run_input.predictor_values.shape[0])
+        if sample_count <= 1:
+            raise ValueError(f"Cannot circularly shift EEG QC predictors for run {run_input.run_id!r} with <= 1 sample.")
+        rng = _make_run_seed(
+            seed=seed,
+            subject_id=run_input.subject_id,
+            task=run_input.task,
+            run_id=run_input.run_id,
+        )
+        shift = int(rng.integers(1, sample_count))
+        shifted_predictors = np.array(run_input.predictor_values, copy=True)
+        shifted_predictors[:, shiftable_columns] = np.roll(
+            shifted_predictors[:, shiftable_columns],
+            shift=shift,
+            axis=0,
+        )
+        null_run_inputs.append(
+            replace(
+                run_input,
+                predictor_values=shifted_predictors.astype(np.float32, copy=False),
+            )
+        )
+        shift_by_run[run_input.run_id] = shift
+    return null_run_inputs, shift_by_run
+
+
+def compute_score_delta(score_a: float, score_b: float) -> float:
+    """Return the subject-level delta between two TRF scores."""
+    return float(score_a - score_b)
+
+
+def _discover_subject_ids(cfg: ProjectConfig, paths: ProjectPaths) -> list[str]:
+    """Discover subjects from the BIDS root while honoring debug/exclusion config."""
+    if bool(cfg.raw.get("debug", {}).get("enabled", False)):
+        debug_subjects = [str(subject) for subject in cfg.raw.get("debug", {}).get("subjects", [])]
+        if len(debug_subjects) > 0:
+            return debug_subjects
+
+    pattern = str(cfg.raw.get("subjects", {}).get("pattern", "sub-*"))
+    excluded = {str(subject) for subject in cfg.raw.get("subjects", {}).get("exclude", [])}
+    return sorted(path.name for path in paths.raw_root.glob(pattern) if path.is_dir() and path.name not in excluded)
+
+
+def _write_table(path: Path, table: pd.DataFrame) -> None:
+    """Persist a tabular QC artifact as TSV."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    table.to_csv(path, sep="\t", index=False)
+
+
+def run_trf_qc_score_tables(
+    *,
+    cfg: ProjectConfig,
+    task: str = DEFAULT_TRF_TASK,
+    eeg_output_path: Path,
+    feature_output_path: Path,
+) -> dict[str, Any]:
+    """Compute subject-level EEG-QC and feature-ablation QC score tables."""
+    trf_cfg = TrfConfig.from_mapping(cfg.raw.get("trf"))
+    paths = ProjectPaths.from_config(cfg)
+    subject_ids = _discover_subject_ids(cfg, paths)
+    run_ids = [str(run_id) for run_id in cfg.raw.get("runs", {}).get("include", {}).get(task, [])]
+
+    eeg_rows: list[dict[str, Any]] = []
+    feature_rows: list[dict[str, Any]] = []
+
+    for subject_id in subject_ids:
+        eeg_run_inputs, _ = load_trf_run_inputs(
+            cfg=cfg,
+            paths=paths,
+            subject_id=subject_id,
+            task=task,
+            run_ids=run_ids,
+            predictor_names=trf_cfg.qc_predictors,
+        )
+        if len(eeg_run_inputs) > 0:
+            real_summary = fit_subject_trf_score(
+                run_inputs=eeg_run_inputs,
+                config=trf_cfg,
+                subject_id=subject_id,
+                task=task,
+                progress_label=f"TRF EEG QC real {subject_id} {task}",
+            )
+            null_run_inputs, _ = build_circular_shifted_eeg_qc_null_run_inputs(
+                eeg_run_inputs,
+                seed=trf_cfg.random_seed,
+            )
+            null_summary = fit_subject_trf_score(
+                run_inputs=null_run_inputs,
+                config=trf_cfg,
+                subject_id=subject_id,
+                task=task,
+                progress_label=f"TRF EEG QC null {subject_id} {task}",
+            )
+            eeg_rows.append(
+                {
+                    "subject": subject_id,
+                    "real_score": real_summary.score,
+                    "null_score": null_summary.score,
+                    "delta": compute_score_delta(real_summary.score, null_summary.score),
+                    "predictor_set": ",".join(trf_cfg.qc_predictors),
+                    "score_name": trf_cfg.scoring.primary,
+                }
+            )
+
+        if len(trf_cfg.ablation_targets) == 0:
+            continue
+        full_run_inputs, _ = load_trf_run_inputs(
+            cfg=cfg,
+            paths=paths,
+            subject_id=subject_id,
+            task=task,
+            run_ids=run_ids,
+            predictor_names=trf_cfg.predictors,
+        )
+        if len(full_run_inputs) == 0:
+            continue
+        full_summary = fit_subject_trf_score(
+            run_inputs=full_run_inputs,
+            config=trf_cfg,
+            subject_id=subject_id,
+            task=task,
+            progress_label=f"TRF feature QC full {subject_id} {task}",
+        )
+        for ablation_target in trf_cfg.ablation_targets:
+            reduced_predictors = build_reduced_predictor_list(trf_cfg.predictors, ablation_target=ablation_target)
+            reduced_run_inputs, _ = load_trf_run_inputs(
+                cfg=cfg,
+                paths=paths,
+                subject_id=subject_id,
+                task=task,
+                run_ids=run_ids,
+                predictor_names=reduced_predictors,
+            )
+            if len(reduced_run_inputs) == 0:
+                continue
+            reduced_summary = fit_subject_trf_score(
+                run_inputs=reduced_run_inputs,
+                config=trf_cfg,
+                subject_id=subject_id,
+                task=task,
+                progress_label=f"TRF feature QC {ablation_target} {subject_id} {task}",
+            )
+            feature_rows.append(
+                {
+                    "subject": subject_id,
+                    "target": ablation_target,
+                    "full_score": full_summary.score,
+                    "reduced_score": reduced_summary.score,
+                    "delta": compute_score_delta(full_summary.score, reduced_summary.score),
+                    "score_name": trf_cfg.scoring.primary,
+                }
+            )
+
+    eeg_table = pd.DataFrame(
+        eeg_rows,
+        columns=("subject", "real_score", "null_score", "delta", "predictor_set", "score_name"),
+    )
+    feature_table = pd.DataFrame(
+        feature_rows,
+        columns=("subject", "target", "full_score", "reduced_score", "delta", "score_name"),
+    )
+    _write_table(Path(eeg_output_path), eeg_table)
+    _write_table(Path(feature_output_path), feature_table)
+    return {
+        "task": task,
+        "subject_count": len(subject_ids),
+        "eeg_row_count": int(eeg_table.shape[0]),
+        "feature_row_count": int(feature_table.shape[0]),
+        "eeg_output_path": str(eeg_output_path),
+        "feature_output_path": str(feature_output_path),
+    }
+
+
 def _default_output_dir(paths: ProjectPaths, *, subject_id: str, task: str) -> Path:
     """Return the default results directory for one subject-level TRF run."""
     return paths.out_dir / TRF_RESULTS_DIRNAME / subject_id / f"task-{task}"
@@ -1010,22 +1304,10 @@ def run_trf_pipeline(
     if len(run_inputs) == 0:
         raise ValueError(f"No TRF runs could be loaded for {subject_id} task={task!r}.")
 
-    lag_samples = compute_lag_samples(
-        tmin_seconds=trf_cfg.lags.tmin_seconds,
-        tmax_seconds=trf_cfg.lags.tmax_seconds,
-        sampling_rate_hz=trf_cfg.target_sfreq,
+    lag_samples, segments, skipped_segments, lagged_designs = prepare_trf_segment_designs(
+        run_inputs,
+        config=trf_cfg,
     )
-    segments: list[TrfSegment] = []
-    skipped_segments: list[str] = []
-    for run_input in run_inputs:
-        run_segments, run_skipped_segments = split_run_into_segments(run_input, trf_cfg)
-        segments.extend(run_segments)
-        skipped_segments.extend(run_skipped_segments)
-
-    if len(segments) == 0:
-        raise ValueError(f"No valid TRF segments were available for {subject_id} task={task!r}.")
-
-    lagged_designs = [build_lagged_segment_design(segment, lag_samples) for segment in segments]
     coefficient_path = target_out_dir / "coefficients.npz" if trf_cfg.outputs.save_coefficients else None
     fold_results, coefficient_paths = fit_nested_trf(
         lagged_designs,

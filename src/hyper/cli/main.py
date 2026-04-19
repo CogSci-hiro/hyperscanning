@@ -46,9 +46,11 @@ _COMMANDS: dict[str, str | CliCommand] = {
     "alignment-events": "hyper.cli.commands.features.alignment_events",
     "token-events": "hyper.cli.commands.features.tokens",
     "pos-tags": "hyper.cli.commands.features.pos",
+    "pos-qc": "hyper.cli.commands.pos_qc",
     "trf": "hyper.cli.commands.trf",
     "trf-kernel-qc": "hyper.cli.commands.trf_qc",
     "trf-alpha-qc": "hyper.cli.commands.trf_alpha_qc",
+    "trf-score-qc": "hyper.cli.commands.trf_score_qc",
 }
 
 

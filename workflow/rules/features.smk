@@ -101,8 +101,8 @@ def _trf_run_is_externally_available(subject, task, run, predictor_names):
     return True
 
 
-def _trf_subject_has_eligible_run(subject, task):
-    predictor_names = list(config.get("trf", {}).get("predictors", []))
+def _trf_subject_has_eligible_run(subject, task, predictor_names=None):
+    predictor_names = list(predictor_names or config.get("trf", {}).get("predictors", []))
     for run in RUNS_BY_TASK.get(str(task), RUNS):
         run_str = str(run)
         if _is_explicitly_missing(cfg=config, subject=subject, task=task, run=run_str):
@@ -115,6 +115,16 @@ def _trf_subject_has_eligible_run(subject, task):
         if _trf_run_is_externally_available(subject, task, run_str, predictor_names):
             return True
     return False
+
+
+def _trf_qc_required_predictors():
+    predictors = list(config.get("trf", {}).get("predictors", []))
+    qc_predictors = list(config.get("trf", {}).get("qc_predictors", predictors))
+    combined = []
+    for predictor_name in [*predictors, *qc_predictors]:
+        if predictor_name not in combined:
+            combined.append(predictor_name)
+    return combined
 
 rule speech_envelope:
     input:
@@ -442,6 +452,59 @@ rule token_pos:
         """
 
 
+def _pos_qc_feature_tables():
+    inputs = []
+    for subject in SUBJECTS:
+        for task in TASKS:
+            for run in RUNS_BY_TASK.get(task, RUNS):
+                run_str = str(run)
+                if _is_explicitly_missing(cfg=config, subject=subject, task=task, run=run_str):
+                    continue
+                for role in FEATURE_ROLES:
+                    inputs.append(
+                        out_path(
+                            "features",
+                            "events",
+                            "pos",
+                            f"{subject}_task-{task}_run-{run_str}_desc-{role}_pos_features.tsv",
+                        )
+                    )
+    return inputs
+
+
+def _pos_qc_inputs(_wildcards):
+    return ["config/config.yaml", *_pos_qc_feature_tables()]
+
+
+if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)) and len(_pos_qc_feature_tables()) > 0:
+    rule pos_qc:
+        input:
+            _pos_qc_inputs
+        output:
+            distribution=out_path("qc", "pos", "pos_distribution.png"),
+            heatmap=out_path("qc", "pos", "pos_heatmap_by_run.png"),
+            problematic=out_path("qc", "pos", "pos_problematic_tokens.png"),
+            counts=out_path("qc", "pos", "pos_counts.tsv"),
+            proportions=out_path("qc", "pos", "pos_proportions.tsv"),
+            proportions_by_run=out_path("qc", "pos", "pos_proportions_by_run.tsv"),
+            problematic_by_run=out_path("qc", "pos", "pos_problematic_metrics_by_run.tsv")
+        params:
+            input_glob=lambda wildcards, input: str(Path(str(input[1])).parent / "*.tsv"),
+            out_dir=lambda wildcards, output: str(Path(str(output.distribution)).parent)
+        conda:
+            CONDA_PY_ENV
+        threads: 1
+        resources:
+            mem_mb=2_000
+        shell:
+            """
+            {HYPER_MODULE_CMD} pos-qc \
+                --config config/config.yaml \
+                --glob '{params.input_glob}' \
+                --out-dir {params.out_dir}
+            """
+
+
 def _trf_subject_inputs(wildcards):
     predictor_names = list(config.get("trf", {}).get("predictors", []))
     run_inputs = ["config/config.yaml"]
@@ -505,6 +568,37 @@ def _trf_qc_inputs(_wildcards):
     return inputs
 
 
+def _trf_qc_score_table_inputs(_wildcards):
+    inputs = ["config/config.yaml"]
+    task = "conversation"
+    if task not in TASKS:
+        return inputs
+    predictor_names = _trf_qc_required_predictors()
+    for subject in SUBJECTS:
+        for run in RUNS_BY_TASK.get(task, RUNS):
+            run_str = str(run)
+            if _is_explicitly_missing(cfg=config, subject=subject, task=task, run=run_str):
+                continue
+            eeg_dir = BIDS_ROOT / subject / "eeg"
+            edf = eeg_dir / f"{subject}_task-{task}_run-{run}_eeg.edf"
+            channels = eeg_dir / f"{subject}_task-{task}_run-{run}_channels.tsv"
+            if not (edf.exists() and channels.exists()):
+                continue
+            inputs.append(out_path("eeg", "filtered", f"{subject}_task-{task}_run-{run}_raw_filt.fif"))
+            inputs.append(out_path("eeg", "downsampled", f"{subject}_task-{task}_run-{run}_raw_ds_timing.json"))
+            for predictor_name in predictor_names:
+                _storage_kind, root_fn, predictor_path = _trf_predictor_input_path(
+                    predictor_name,
+                    subject,
+                    task,
+                    run_str,
+                )
+                if root_fn is lm_feature_path and not Path(predictor_path).exists():
+                    continue
+                inputs.append(predictor_path)
+    return inputs
+
+
 if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
     rule trf_qc_kernels:
         input:
@@ -542,4 +636,26 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
                 --config config/config.yaml \
                 --task conversation \
                 --manifest {output.manifest}
+            """
+
+
+if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+    rule trf_qc_score_tables:
+        input:
+            _trf_qc_score_table_inputs
+        output:
+            eeg_scores=out_path("trf_qc", "task-{task}", "eeg_scores.tsv"),
+            feature_scores=out_path("trf_qc", "task-{task}", "feature_scores.tsv")
+        conda:
+            CONDA_PY_ENV
+        threads: 1
+        resources:
+            mem_mb=4_000
+        shell:
+            """
+            {HYPER_MODULE_CMD} trf-score-qc \
+                --config config/config.yaml \
+                --task {wildcards.task} \
+                --eeg-out {output.eeg_scores} \
+                --feature-out {output.feature_scores}
             """

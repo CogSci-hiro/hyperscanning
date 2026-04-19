@@ -217,6 +217,8 @@ class TrfConfig:
 
     enabled: bool = False
     predictors: tuple[str, ...] = ("self_speech_envelope",)
+    qc_predictors: tuple[str, ...] = ("self_speech_envelope",)
+    ablation_targets: tuple[str, ...] = ()
     target_sfreq: float = 64.0
     lags: TrfLagConfig = TrfLagConfig()
     conversation: TrfConversationConfig = TrfConversationConfig()
@@ -240,6 +242,26 @@ class TrfConfig:
             raise ValueError(
                 "TRF predictors must be drawn from the supported continuous set "
                 f"{sorted(SUPPORTED_TRF_PREDICTORS)!r}; got unsupported predictors {unsupported_predictors!r}."
+            )
+        if len(self.qc_predictors) == 0:
+            raise ValueError("TRF qc_predictors must contain at least one predictor.")
+        unsupported_qc_predictors = [name for name in self.qc_predictors if name not in SUPPORTED_TRF_PREDICTORS]
+        if unsupported_qc_predictors:
+            raise ValueError(
+                "TRF qc_predictors must be drawn from the supported predictor set "
+                f"{sorted(SUPPORTED_TRF_PREDICTORS)!r}; got unsupported predictors {unsupported_qc_predictors!r}."
+            )
+        missing_ablation_targets = [name for name in self.ablation_targets if name not in self.predictors]
+        if missing_ablation_targets:
+            raise ValueError(
+                "TRF ablation_targets must be drawn from trf.predictors; "
+                f"got invalid targets {missing_ablation_targets!r} for predictors {list(self.predictors)!r}."
+            )
+        empty_reduced_targets = [name for name in self.ablation_targets if len(self.predictors) == 1 and name in self.predictors]
+        if empty_reduced_targets:
+            raise ValueError(
+                "TRF ablation_targets cannot remove the only predictor from the full model; "
+                f"got {empty_reduced_targets!r}."
             )
         if self.target_sfreq <= 0:
             raise ValueError("TRF target_sfreq must be positive.")
@@ -278,10 +300,16 @@ class TrfConfig:
 
         predictors_raw = root.get("predictors", ("self_speech_envelope",))
         predictors = tuple(str(value) for value in predictors_raw)
+        qc_predictors_raw = root.get("qc_predictors", predictors_raw)
+        qc_predictors = tuple(str(value) for value in qc_predictors_raw)
+        ablation_targets_raw = root.get("ablation_targets", ())
+        ablation_targets = tuple(str(value) for value in ablation_targets_raw)
 
         cfg = TrfConfig(
             enabled=_as_bool(root, "enabled", False),
             predictors=predictors,
+            qc_predictors=qc_predictors,
+            ablation_targets=ablation_targets,
             target_sfreq=_as_float(root, "target_sfreq", 64.0),
             lags=TrfLagConfig(
                 tmin_seconds=_as_float(lags_cfg, "tmin_seconds", -0.20),

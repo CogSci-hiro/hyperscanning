@@ -56,6 +56,15 @@
           "type": "array",
           "items": {"type": "string", "minLength": 1}
         },
+        "qc_predictors": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
+        },
+        "ablation_targets": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
         "target_sfreq": {"type": "number", "exclusiveMinimum": 0},
         "lags": {
           "type": "object",

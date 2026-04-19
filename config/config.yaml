@@ -59,6 +59,12 @@ trf:
   predictors:
     - self_speech_envelope
     - other_speech_envelope
+  qc_predictors:
+    - self_speech_envelope
+    - other_speech_envelope
+  ablation_targets:
+    - self_speech_envelope
+    - other_speech_envelope
   target_sfreq: 64.0
   lags:
     tmin_seconds: -0.20

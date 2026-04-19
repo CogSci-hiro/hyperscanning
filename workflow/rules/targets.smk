@@ -64,6 +64,16 @@ def _trf_targets():
         targets.append(out_path("trf", subject, f"task-{task}", "design_info.json"))
     return targets
 
+
+def _trf_qc_score_table_targets():
+    task = "conversation"
+    if task not in TASKS:
+        return []
+    return [
+        out_path("trf_qc", f"task-{task}", "eeg_scores.tsv"),
+        out_path("trf_qc", f"task-{task}", "feature_scores.tsv"),
+    ]
+
 rule preprocessed_all:
     input:
         filter_non_existent(
@@ -193,6 +203,18 @@ if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)):
             _event_feature_targets("pos")
 
 
+if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)) and len(_event_feature_targets("pos")) > 0:
+    rule qc_pos_all:
+        input:
+            out_path("qc", "pos", "pos_distribution.png"),
+            out_path("qc", "pos", "pos_heatmap_by_run.png"),
+            out_path("qc", "pos", "pos_problematic_tokens.png"),
+            out_path("qc", "pos", "pos_counts.tsv"),
+            out_path("qc", "pos", "pos_proportions.tsv"),
+            out_path("qc", "pos", "pos_proportions_by_run.tsv"),
+            out_path("qc", "pos", "pos_problematic_metrics_by_run.tsv")
+
+
 rule epoch_all:
     input:
         filter_non_existent(
@@ -223,6 +245,12 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
     rule qc_trf_alpha_scores_all:
         input:
             out_path("figures", "trf_alpha_scores", "manifest.json")
+
+
+if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+    rule qc_trf_score_tables_all:
+        input:
+            _trf_qc_score_table_targets()
 
 
 rule canary_preprocessing:
