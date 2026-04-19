@@ -43,7 +43,10 @@ def prepare_canary_run(*, tmp_path: Path, spec: CanarySpec = CanarySpec()) -> Ca
     repo_root = Path(__file__).resolve().parents[2]
     base_cfg_path = repo_root / "config" / "config.yaml"
 
-    cfg = load_raw_project_config(base_cfg_path)
+    cfg = load_raw_project_config(
+        base_cfg_path,
+        sections=("paths", "preprocessing", "features", "trf"),
+    )
 
     bids_root = Path(cfg["paths"]["bids_root"])
     annotation_root = Path(cfg["paths"]["annotation_root"])

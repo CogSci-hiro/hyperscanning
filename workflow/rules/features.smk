@@ -102,7 +102,7 @@ def _trf_run_is_externally_available(subject, task, run, predictor_names):
 
 
 def _trf_subject_has_eligible_run(subject, task, predictor_names=None):
-    predictor_names = list(predictor_names or config.get("trf", {}).get("predictors", []))
+    predictor_names = list(predictor_names or TRF.get("predictors", []))
     for run in RUNS_BY_TASK.get(str(task), RUNS):
         run_str = str(run)
         if _is_explicitly_missing(cfg=config, subject=subject, task=task, run=run_str):
@@ -118,13 +118,24 @@ def _trf_subject_has_eligible_run(subject, task, predictor_names=None):
 
 
 def _trf_qc_required_predictors():
-    predictors = list(config.get("trf", {}).get("predictors", []))
-    qc_predictors = list(config.get("trf", {}).get("qc_predictors", predictors))
+    predictors = list(TRF.get("predictors", []))
+    qc_predictors = list(TRF.get("qc_predictors", predictors))
     combined = []
     for predictor_name in [*predictors, *qc_predictors]:
         if predictor_name not in combined:
             combined.append(predictor_name)
     return combined
+
+
+FEATURES_SIGNATURE = _config_signature({"features": FEATURES})
+TRF_SIGNATURE = _config_signature({"trf": TRF}, {"paths": PATHS})
+TRF_WORKFLOW_SIGNATURE = _config_signature(
+    {"trf": TRF},
+    {"paths": PATHS},
+    {"runs": config.get("runs", {})},
+    {"subjects": config.get("subjects", {})},
+    {"debug": config.get("debug", {})},
+)
 
 rule speech_envelope:
     input:
@@ -134,21 +145,22 @@ rule speech_envelope:
             "audio",
             f"{_partner_subject(wildcards.subject)}_task-{wildcards.task}_run-{wildcards.run}.wav",
         ),
-        raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
-        config="config/config.yaml"
+        raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif")
     output:
         self_values=out_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-self_envelope_feature.npy"),
         self_sidecar=out_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-self_envelope_feature.json"),
         other_values=out_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-other_envelope_feature.npy"),
         other_sidecar=out_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-other_envelope_feature.json")
     params:
+        config_path=str(ACTIVE_CONFIG_PATH),
+        config_signature=lambda wildcards: FEATURES_SIGNATURE,
         other_subject=lambda wildcards: _partner_subject(wildcards.subject)
     conda:
         CONDA_PY_ENV
     shell:
         """
         {HYPER_MODULE_CMD} acoustic-envelope \
-            --config {input.config} \
+            --config {params.config_path} \
             --audio {input.self_audio} \
             --raw {input.raw} \
             --feature-name self_speech_envelope \
@@ -157,7 +169,7 @@ rule speech_envelope:
             --out {output.self_values} \
             --out-sidecar {output.self_sidecar}
         {HYPER_MODULE_CMD} acoustic-envelope \
-            --config {input.config} \
+            --config {params.config_path} \
             --audio {input.other_audio} \
             --raw {input.raw} \
             --feature-name other_speech_envelope \
@@ -176,21 +188,22 @@ rule f0:
             "audio",
             f"{_partner_subject(wildcards.subject)}_task-{wildcards.task}_run-{wildcards.run}.wav",
         ),
-        raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif"),
-        config="config/config.yaml"
+        raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif")
     output:
         self_values=out_path("features", "continuous", "f0", "{subject}_task-{task}_run-{run}_desc-self_f0_feature.npy"),
         self_sidecar=out_path("features", "continuous", "f0", "{subject}_task-{task}_run-{run}_desc-self_f0_feature.json"),
         other_values=out_path("features", "continuous", "f0", "{subject}_task-{task}_run-{run}_desc-other_f0_feature.npy"),
         other_sidecar=out_path("features", "continuous", "f0", "{subject}_task-{task}_run-{run}_desc-other_f0_feature.json")
     params:
+        config_path=str(ACTIVE_CONFIG_PATH),
+        config_signature=lambda wildcards: FEATURES_SIGNATURE,
         other_subject=lambda wildcards: _partner_subject(wildcards.subject)
     conda:
         CONDA_PY_ENV
     shell:
         """
         {HYPER_MODULE_CMD} acoustic-pitch \
-            --config {input.config} \
+            --config {params.config_path} \
             --audio {input.self_audio} \
             --raw {input.raw} \
             --feature-name self_f0 \
@@ -199,7 +212,7 @@ rule f0:
             --out {output.self_values} \
             --out-sidecar {output.self_sidecar}
         {HYPER_MODULE_CMD} acoustic-pitch \
-            --config {input.config} \
+            --config {params.config_path} \
             --audio {input.other_audio} \
             --raw {input.raw} \
             --feature-name other_f0 \
@@ -221,14 +234,15 @@ rule f1_f2:
         self_alignment=annotation_path("palign_v1", "{subject}_run-{run}_palign.csv"),
         other_alignment=lambda wildcards: annotation_path(
             "palign_v1", f"{_partner_subject(wildcards.subject)}_run-{wildcards.run}_palign.csv"
-        ),
-        config="config/config.yaml"
+        )
     output:
         self_table=out_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-self_vowels_features.tsv"),
         self_sidecar=out_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-self_vowels_features.json"),
         other_table=out_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-other_vowels_features.tsv"),
         other_sidecar=out_path("features", "events", "vowels", "{subject}_task-{task}_run-{run}_desc-other_vowels_features.json")
     params:
+        config_path=str(ACTIVE_CONFIG_PATH),
+        config_signature=lambda wildcards: FEATURES_SIGNATURE,
         tier="PhonAlign",
         other_subject=lambda wildcards: _partner_subject(wildcards.subject),
         self_speaker=lambda wildcards: _speaker_for_subject(wildcards.subject),
@@ -238,7 +252,7 @@ rule f1_f2:
     shell:
         """
         {HYPER_MODULE_CMD} acoustic-formants \
-            --config {input.config} \
+            --config {params.config_path} \
             --audio {input.self_audio} \
             --alignment {input.self_alignment} \
             --tier {params.tier} \
@@ -249,7 +263,7 @@ rule f1_f2:
             --out-tsv {output.self_table} \
             --out-sidecar {output.self_sidecar}
         {HYPER_MODULE_CMD} acoustic-formants \
-            --config {input.config} \
+            --config {params.config_path} \
             --audio {input.other_audio} \
             --alignment {input.other_alignment} \
             --tier {params.tier} \
@@ -267,14 +281,15 @@ rule phoneme_onsets:
         self_alignment=annotation_path("palign_v1", "{subject}_run-{run}_palign.csv"),
         other_alignment=lambda wildcards: annotation_path(
             "palign_v1", f"{_partner_subject(wildcards.subject)}_run-{wildcards.run}_palign.csv"
-        ),
-        config="config/config.yaml"
+        )
     output:
         self_table=out_path("features", "events", "phonemes", "{subject}_task-{task}_run-{run}_desc-self_phonemes_features.tsv"),
         self_sidecar=out_path("features", "events", "phonemes", "{subject}_task-{task}_run-{run}_desc-self_phonemes_features.json"),
         other_table=out_path("features", "events", "phonemes", "{subject}_task-{task}_run-{run}_desc-other_phonemes_features.tsv"),
         other_sidecar=out_path("features", "events", "phonemes", "{subject}_task-{task}_run-{run}_desc-other_phonemes_features.json")
     params:
+        config_path=str(ACTIVE_CONFIG_PATH),
+        config_signature=lambda wildcards: FEATURES_SIGNATURE,
         tier="PhonAlign",
         self_feature_name="self_phonemes",
         other_feature_name="other_phonemes",
@@ -284,7 +299,7 @@ rule phoneme_onsets:
     shell:
         """
         {HYPER_MODULE_CMD} alignment-events \
-            --config {input.config} \
+            --config {params.config_path} \
             --alignment {input.self_alignment} \
             --tier {params.tier} \
             --feature-name {params.self_feature_name} \
@@ -296,7 +311,7 @@ rule phoneme_onsets:
             --out-tsv {output.self_table} \
             --out-sidecar {output.self_sidecar}
         {HYPER_MODULE_CMD} alignment-events \
-            --config {input.config} \
+            --config {params.config_path} \
             --alignment {input.other_alignment} \
             --tier {params.tier} \
             --feature-name {params.other_feature_name} \
@@ -315,14 +330,15 @@ rule syllable_onsets:
         self_alignment=annotation_path("syllable_v1", "{subject}_run-{run}_syllable.csv"),
         other_alignment=lambda wildcards: annotation_path(
             "syllable_v1", f"{_partner_subject(wildcards.subject)}_run-{wildcards.run}_syllable.csv"
-        ),
-        config="config/config.yaml"
+        )
     output:
         self_table=out_path("features", "events", "syllables", "{subject}_task-{task}_run-{run}_desc-self_syllables_features.tsv"),
         self_sidecar=out_path("features", "events", "syllables", "{subject}_task-{task}_run-{run}_desc-self_syllables_features.json"),
         other_table=out_path("features", "events", "syllables", "{subject}_task-{task}_run-{run}_desc-other_syllables_features.tsv"),
         other_sidecar=out_path("features", "events", "syllables", "{subject}_task-{task}_run-{run}_desc-other_syllables_features.json")
     params:
+        config_path=str(ACTIVE_CONFIG_PATH),
+        config_signature=lambda wildcards: FEATURES_SIGNATURE,
         tier="SyllAlign",
         self_feature_name="self_syllables",
         other_feature_name="other_syllables",
@@ -332,7 +348,7 @@ rule syllable_onsets:
     shell:
         """
         {HYPER_MODULE_CMD} alignment-events \
-            --config {input.config} \
+            --config {params.config_path} \
             --alignment {input.self_alignment} \
             --tier {params.tier} \
             --feature-name {params.self_feature_name} \
@@ -344,7 +360,7 @@ rule syllable_onsets:
             --out-tsv {output.self_table} \
             --out-sidecar {output.self_sidecar}
         {HYPER_MODULE_CMD} alignment-events \
-            --config {input.config} \
+            --config {params.config_path} \
             --alignment {input.other_alignment} \
             --tier {params.tier} \
             --feature-name {params.other_feature_name} \
@@ -363,21 +379,22 @@ rule token_onsets:
         tokens=lambda wildcards: annotation_path(
             "tokens_v1",
             f"dyad-{str((int(str(wildcards.subject).replace('sub-', '')) + 1) // 2).zfill(3)}_tokens.csv",
-        ),
-        config="config/config.yaml"
+        )
     output:
         self_table=out_path("features", "events", "tokens", "{subject}_task-{task}_run-{run}_desc-self_tokens_features.tsv"),
         self_sidecar=out_path("features", "events", "tokens", "{subject}_task-{task}_run-{run}_desc-self_tokens_features.json"),
         other_table=out_path("features", "events", "tokens", "{subject}_task-{task}_run-{run}_desc-other_tokens_features.tsv"),
         other_sidecar=out_path("features", "events", "tokens", "{subject}_task-{task}_run-{run}_desc-other_tokens_features.json")
     params:
+        config_path=str(ACTIVE_CONFIG_PATH),
+        config_signature=lambda wildcards: FEATURES_SIGNATURE,
         other_subject=lambda wildcards: _partner_subject(wildcards.subject)
     conda:
         CONDA_PY_ENV
     shell:
         """
         {HYPER_MODULE_CMD} token-events \
-            --config {input.config} \
+            --config {params.config_path} \
             --tokens {input.tokens} \
             --subject {wildcards.subject} \
             --run {wildcards.run} \
@@ -390,7 +407,7 @@ rule token_onsets:
             --out-tsv {output.self_table} \
             --out-sidecar {output.self_sidecar}
         {HYPER_MODULE_CMD} token-events \
-            --config {input.config} \
+            --config {params.config_path} \
             --tokens {input.tokens} \
             --subject {params.other_subject} \
             --run {wildcards.run} \
@@ -410,21 +427,22 @@ rule token_pos:
         tokens=lambda wildcards: annotation_path(
             "tokens_v1",
             f"dyad-{str((int(str(wildcards.subject).replace('sub-', '')) + 1) // 2).zfill(3)}_tokens.csv",
-        ),
-        config="config/config.yaml"
+        )
     output:
         self_table=out_path("features", "events", "pos", "{subject}_task-{task}_run-{run}_desc-self_pos_features.tsv"),
         self_sidecar=out_path("features", "events", "pos", "{subject}_task-{task}_run-{run}_desc-self_pos_features.json"),
         other_table=out_path("features", "events", "pos", "{subject}_task-{task}_run-{run}_desc-other_pos_features.tsv"),
         other_sidecar=out_path("features", "events", "pos", "{subject}_task-{task}_run-{run}_desc-other_pos_features.json")
     params:
+        config_path=str(ACTIVE_CONFIG_PATH),
+        config_signature=lambda wildcards: FEATURES_SIGNATURE,
         other_subject=lambda wildcards: _partner_subject(wildcards.subject)
     conda:
         CONDA_PY_ENV
     shell:
         """
         {HYPER_MODULE_CMD} pos-tags \
-            --config {input.config} \
+            --config {params.config_path} \
             --tokens {input.tokens} \
             --subject {wildcards.subject} \
             --run {wildcards.run} \
@@ -437,7 +455,7 @@ rule token_pos:
             --out-tsv {output.self_table} \
             --out-sidecar {output.self_sidecar}
         {HYPER_MODULE_CMD} pos-tags \
-            --config {input.config} \
+            --config {params.config_path} \
             --tokens {input.tokens} \
             --subject {params.other_subject} \
             --run {wildcards.run} \
@@ -473,10 +491,10 @@ def _pos_qc_feature_tables():
 
 
 def _pos_qc_inputs(_wildcards):
-    return ["config/config.yaml", *_pos_qc_feature_tables()]
+    return _pos_qc_feature_tables()
 
 
-if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)) and len(_pos_qc_feature_tables()) > 0:
+if bool(FEATURES.get("stanza_pos", {}).get("enabled", True)) and len(_pos_qc_feature_tables()) > 0:
     rule pos_qc:
         input:
             _pos_qc_inputs
@@ -489,7 +507,9 @@ if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)) a
             proportions_by_run=out_path("qc", "pos", "pos_proportions_by_run.tsv"),
             problematic_by_run=out_path("qc", "pos", "pos_problematic_metrics_by_run.tsv")
         params:
-            input_glob=lambda wildcards, input: str(Path(str(input[1])).parent / "*.tsv"),
+            config_path=str(ACTIVE_CONFIG_PATH),
+            config_signature=lambda wildcards: FEATURES_SIGNATURE,
+            input_glob=lambda wildcards, input: str(Path(str(input[0])).parent / "*.tsv"),
             out_dir=lambda wildcards, output: str(Path(str(output.distribution)).parent)
         conda:
             CONDA_PY_ENV
@@ -499,15 +519,15 @@ if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)) a
         shell:
             """
             {HYPER_MODULE_CMD} pos-qc \
-                --config config/config.yaml \
+                --config {params.config_path} \
                 --glob '{params.input_glob}' \
                 --out-dir {params.out_dir}
             """
 
 
 def _trf_subject_inputs(wildcards):
-    predictor_names = list(config.get("trf", {}).get("predictors", []))
-    run_inputs = ["config/config.yaml"]
+    predictor_names = list(TRF.get("predictors", []))
+    run_inputs = []
     for run in RUNS_BY_TASK.get(str(wildcards.task), RUNS):
         run_str = str(run)
         if _is_explicitly_missing(cfg=config, subject=wildcards.subject, task=wildcards.task, run=str(run)):
@@ -534,7 +554,7 @@ def _trf_subject_inputs(wildcards):
     return run_inputs
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule trf:
         input:
             _trf_subject_inputs
@@ -543,12 +563,15 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
             selected_alpha=out_path("trf", "{subject}", "task-{task}", "selected_alpha_per_fold.json"),
             coefficients=out_path("trf", "{subject}", "task-{task}", "coefficients.npz"),
             design_info=out_path("trf", "{subject}", "task-{task}", "design_info.json")
+        params:
+            config_path=str(ACTIVE_CONFIG_PATH),
+            config_signature=lambda wildcards: TRF_WORKFLOW_SIGNATURE
         conda:
             CONDA_PY_ENV
         shell:
             """
             {HYPER_MODULE_CMD} trf \
-                --config config/config.yaml \
+                --config {params.config_path} \
                 --subject {wildcards.subject} \
                 --task {wildcards.task} \
                 --out-dir $(dirname {output.fold_scores})
@@ -569,7 +592,7 @@ def _trf_qc_inputs(_wildcards):
 
 
 def _trf_qc_score_table_inputs(_wildcards):
-    inputs = ["config/config.yaml"]
+    inputs = []
     task = "conversation"
     if task not in TASKS:
         return inputs
@@ -599,12 +622,15 @@ def _trf_qc_score_table_inputs(_wildcards):
     return inputs
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule trf_qc_kernels:
         input:
             _trf_qc_inputs
         output:
             manifest=out_path("figures", "trf_kernels", "manifest.json")
+        params:
+            config_path=str(ACTIVE_CONFIG_PATH),
+            config_signature=lambda wildcards: TRF_SIGNATURE
         conda:
             CONDA_PY_ENV
         threads: 1
@@ -613,18 +639,21 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
         shell:
             """
             {HYPER_MODULE_CMD} trf-kernel-qc \
-                --config config/config.yaml \
+                --config {params.config_path} \
                 --task conversation \
                 --manifest {output.manifest}
             """
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule trf_qc_alpha_scores:
         input:
             _trf_qc_inputs
         output:
             manifest=out_path("figures", "trf_alpha_scores", "manifest.json")
+        params:
+            config_path=str(ACTIVE_CONFIG_PATH),
+            config_signature=lambda wildcards: TRF_SIGNATURE
         conda:
             CONDA_PY_ENV
         threads: 1
@@ -633,19 +662,22 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
         shell:
             """
             {HYPER_MODULE_CMD} trf-alpha-qc \
-                --config config/config.yaml \
+                --config {params.config_path} \
                 --task conversation \
                 --manifest {output.manifest}
             """
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule trf_qc_score_tables:
         input:
             _trf_qc_score_table_inputs
         output:
             eeg_scores=out_path("trf_qc", "task-{task}", "eeg_scores.tsv"),
             feature_scores=out_path("trf_qc", "task-{task}", "feature_scores.tsv")
+        params:
+            config_path=str(ACTIVE_CONFIG_PATH),
+            config_signature=lambda wildcards: TRF_WORKFLOW_SIGNATURE
         conda:
             CONDA_PY_ENV
         threads: 1
@@ -654,7 +686,7 @@ if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths"
         shell:
             """
             {HYPER_MODULE_CMD} trf-score-qc \
-                --config config/config.yaml \
+                --config {params.config_path} \
                 --task {wildcards.task} \
                 --eeg-out {output.eeg_scores} \
                 --feature-out {output.feature_scores}

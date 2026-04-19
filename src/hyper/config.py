@@ -35,9 +35,17 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Sequence
 
 import yaml
+
+
+SECTION_FILE_NAMES: dict[str, str] = {
+    "paths": "paths.yaml",
+    "preprocessing": "preprocessing.yaml",
+    "features": "features.yaml",
+    "trf": "trf.yaml",
+}
 
 
 # ==================================================================================================
@@ -79,91 +87,59 @@ def _load_yaml_mapping(path: Path) -> Dict[str, Any]:
     return dict(data)
 
 
-def _merge_path_sections(external: Mapping[str, Any], base: Mapping[str, Any]) -> Dict[str, Any]:
-    """Merge `paths` mappings with base config taking precedence."""
-    merged: Dict[str, Any] = dict(external)
-    external_paths = external.get("paths", {})
-    base_paths = base.get("paths", {})
-    if isinstance(external_paths, Mapping) or isinstance(base_paths, Mapping):
-        merged["paths"] = {
-            **(dict(external_paths) if isinstance(external_paths, Mapping) else {}),
-            **(dict(base_paths) if isinstance(base_paths, Mapping) else {}),
-        }
-    for key, value in base.items():
-        if key == "paths" and "paths" in merged:
-            continue
-        merged[key] = value
-    return merged
+def _normalized_sections(sections: Sequence[str]) -> tuple[str, ...]:
+    """Validate and normalize the requested sibling config sections."""
+    unknown = sorted({str(section) for section in sections if str(section) not in SECTION_FILE_NAMES})
+    if unknown:
+        raise ValueError(f"Unknown config sections requested: {', '.join(unknown)}")
+    return tuple(dict.fromkeys(str(section) for section in sections))
 
 
-def _merge_named_sections(external: Mapping[str, Any], base: Mapping[str, Any], section_names: tuple[str, ...]) -> Dict[str, Any]:
-    """Merge selected top-level mapping sections, with base values taking precedence."""
-    merged: Dict[str, Any] = dict(external)
-    for section_name in section_names:
-        external_section = external.get(section_name, {})
-        base_section = base.get(section_name, {})
-        if isinstance(external_section, Mapping) or isinstance(base_section, Mapping):
-            merged[section_name] = {
-                **(dict(external_section) if isinstance(external_section, Mapping) else {}),
-                **(dict(base_section) if isinstance(base_section, Mapping) else {}),
-            }
-    for key, value in base.items():
-        if key in section_names and key in merged:
-            continue
-        merged[key] = value
-    return merged
-
-
-def _merge_named_sections_external_precedence(
-    external: Mapping[str, Any],
+def _load_optional_section(
+    *,
+    config_path: Path,
     base: Mapping[str, Any],
-    section_names: tuple[str, ...],
+    section_name: str,
 ) -> Dict[str, Any]:
-    """Merge selected top-level mapping sections, with external values taking precedence."""
-    merged: Dict[str, Any] = dict(base)
-    for section_name in section_names:
-        external_section = external.get(section_name, {})
-        base_section = base.get(section_name, {})
-        if isinstance(external_section, Mapping) or isinstance(base_section, Mapping):
-            merged[section_name] = {
-                **(dict(base_section) if isinstance(base_section, Mapping) else {}),
-                **(dict(external_section) if isinstance(external_section, Mapping) else {}),
-            }
-    for key, value in external.items():
-        if key in section_names and key in merged:
-            continue
-        merged.setdefault(key, value)
+    """Load one optional sibling section and merge it with inline overrides."""
+    base_section = base.get(section_name, {})
+    if base_section is None:
+        base_section = {}
+    if not isinstance(base_section, Mapping):
+        raise ValueError(f"Config section '{section_name}' must be a mapping when present.")
+
+    sibling_path = config_path.with_name(SECTION_FILE_NAMES[section_name])
+    sibling_section: Mapping[str, Any] = {}
+    if sibling_path.exists():
+        sibling_data = _load_yaml_mapping(sibling_path)
+        raw_section = sibling_data.get(section_name, {})
+        if raw_section is None:
+            raw_section = {}
+        if not isinstance(raw_section, Mapping):
+            raise ValueError(f"Config section '{section_name}' in {sibling_path} must be a mapping.")
+        sibling_section = raw_section
+
+    if section_name == "trf":
+        merged = {**dict(base_section), **dict(sibling_section)}
+    else:
+        merged = {**dict(sibling_section), **dict(base_section)}
     return merged
 
 
-def load_raw_project_config(config_path: Path) -> Dict[str, Any]:
-    """Load config YAML and merge optional sibling config fragments."""
+def load_raw_project_config(config_path: Path, *, sections: Sequence[str] = ()) -> Dict[str, Any]:
+    """Load config YAML and optionally attach only the requested sibling sections."""
     config_path = Path(config_path)
     base = _load_yaml_mapping(config_path)
     merged = dict(base)
-
-    preprocessing_path = config_path.with_name("preprocessing.yaml")
-    if preprocessing_path.exists():
-        external = _load_yaml_mapping(preprocessing_path)
-        merged = _merge_named_sections(external, merged, ("preprocessing",))
-
-    features_path = config_path.with_name("features.yaml")
-    if features_path.exists():
-        external = _load_yaml_mapping(features_path)
-        merged = _merge_named_sections(external, merged, ("features",))
-
-    trf_path = config_path.with_name("trf.yaml")
-    if trf_path.exists():
-        external = _load_yaml_mapping(trf_path)
-        merged = _merge_named_sections_external_precedence(external, merged, ("trf",))
-
-    paths_path = config_path.with_name("paths.yaml")
-    if paths_path.exists():
-        external = _load_yaml_mapping(paths_path)
-        merged = _merge_path_sections(external, merged)
+    for section_name in _normalized_sections(sections):
+        merged[section_name] = _load_optional_section(
+            config_path=config_path,
+            base=base,
+            section_name=section_name,
+        )
     return merged
 
-def load_project_config(config_path: Path) -> ProjectConfig:
+def load_project_config(config_path: Path, *, sections: Sequence[str] = ()) -> ProjectConfig:
     """
     Load YAML config into a ProjectConfig object.
 
@@ -182,4 +158,4 @@ def load_project_config(config_path: Path) -> ProjectConfig:
         cfg = load_project_config(Path("config/config.yaml"))
         print(cfg.raw["project"]["name"])
     """
-    return ProjectConfig(raw=load_raw_project_config(Path(config_path)))
+    return ProjectConfig(raw=load_raw_project_config(Path(config_path), sections=sections))

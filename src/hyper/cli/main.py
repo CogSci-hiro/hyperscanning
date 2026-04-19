@@ -53,6 +53,27 @@ _COMMANDS: dict[str, str | CliCommand] = {
     "trf-score-qc": "hyper.cli.commands.trf_score_qc",
 }
 
+_COMMAND_CONFIG_SECTIONS: dict[str, tuple[str, ...]] = {
+    "downsample": ("preprocessing",),
+    "reref": ("preprocessing",),
+    "ica-apply": ("preprocessing",),
+    "interpolate": ("preprocessing",),
+    "filter": ("preprocessing",),
+    "metadata": (),
+    "epoch": (),
+    "acoustic-envelope": ("features",),
+    "acoustic-pitch": ("features",),
+    "acoustic-formants": ("features",),
+    "alignment-events": ("features",),
+    "token-events": ("features",),
+    "pos-tags": ("features",),
+    "pos-qc": ("features",),
+    "trf": ("paths", "trf"),
+    "trf-kernel-qc": ("paths", "trf"),
+    "trf-alpha-qc": ("paths", "trf"),
+    "trf-score-qc": ("paths", "trf"),
+}
+
 
 def _resolve_command_module(command: str, module_or_path: str | CliCommand) -> CliCommand:
     """Resolve a command registry entry into a command module."""
@@ -151,9 +172,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     if not hasattr(args, "config"):
         raise RuntimeError("Internal error: subcommand args missing --config.")
 
-    cfg = load_project_config(Path(args.config))
-
     command_name = str(args.command)
+    cfg = load_project_config(
+        Path(args.config),
+        sections=_COMMAND_CONFIG_SECTIONS.get(command_name, ()),
+    )
     module_or_path = _COMMANDS.get(command_name)
     if module_or_path is None:
         raise RuntimeError(f"Unknown command: {command_name}")

@@ -49,7 +49,12 @@ def test_main_dispatches_to_selected_command(monkeypatch, tmp_path: Path) -> Non
     """`main(...)` should load config once and call module.run(args, cfg)."""
     fake = _FakeCommand()
     monkeypatch.setattr(mod, "_COMMANDS", {"fake": fake})
-    monkeypatch.setattr(mod, "load_project_config", lambda p: {"loaded_from": p})
+    monkeypatch.setattr(mod, "_COMMAND_CONFIG_SECTIONS", {"fake": ("features",)})
+    monkeypatch.setattr(
+        mod,
+        "load_project_config",
+        lambda p, *, sections=(): {"loaded_from": p, "sections": tuple(sections)},
+    )
 
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text("x: 1\n", encoding="utf-8")
@@ -58,6 +63,7 @@ def test_main_dispatches_to_selected_command(monkeypatch, tmp_path: Path) -> Non
 
     assert fake.ran is True
     assert fake.cfg["loaded_from"] == cfg_path
+    assert fake.cfg["sections"] == ("features",)
 
 
 def test_build_arg_parser_rejects_missing_add_subparser(monkeypatch) -> None:

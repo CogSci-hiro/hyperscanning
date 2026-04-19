@@ -49,7 +49,7 @@ def _event_feature_targets(desc: str):
 
 
 def _trf_targets():
-    if not bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+    if not bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
         return []
     targets = []
     for subject in SUBJECTS:
@@ -141,6 +141,19 @@ rule interpolate_all:
           cfg=config
         )
 
+rule interpolate_noica_all:
+    input:
+        filter_non_existent(
+            expand(
+                out_path("eeg", "interpolated_noica", "{subject}_task-{task}_run-{run}_raw_interp_noica.fif"),
+                subject=SUBJECTS,
+                task=TASKS,
+                run=RUNS,
+            ),
+          bids_root=BIDS_ROOT,
+          cfg=config
+        )
+
 rule filter_all:
     input:
         filter_non_existent(
@@ -154,11 +167,37 @@ rule filter_all:
           cfg=config
         )
 
+rule filter_noica_all:
+    input:
+        filter_non_existent(
+            expand(
+                out_path("eeg", "filtered_noica", "{subject}_task-{task}_run-{run}_raw_filt_noica.fif"),
+                subject=SUBJECTS,
+                task=TASKS,
+                run=RUNS,
+            ),
+          bids_root=BIDS_ROOT,
+          cfg=config
+        )
+
 rule metadata_all:
     input:
         filter_non_existent(
             expand(
                 out_path("beh", "metadata", "{subject}_task-{task}_run-{run}_metadata.tsv"),
+                subject=SUBJECTS,
+                task=TASKS,
+                run=RUNS,
+            ),
+          bids_root=BIDS_ROOT,
+          cfg=config
+        )
+
+rule metadata_noica_all:
+    input:
+        filter_non_existent(
+            expand(
+                out_path("beh", "metadata_noica", "{subject}_task-{task}_run-{run}_metadata_noica.tsv"),
                 subject=SUBJECTS,
                 task=TASKS,
                 run=RUNS,
@@ -197,13 +236,13 @@ rule token_onsets_all:
         _event_feature_targets("tokens")
 
 
-if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)):
+if bool(FEATURES.get("stanza_pos", {}).get("enabled", True)):
     rule token_pos_all:
         input:
             _event_feature_targets("pos")
 
 
-if bool(config.get("features", {}).get("stanza_pos", {}).get("enabled", True)) and len(_event_feature_targets("pos")) > 0:
+if bool(FEATURES.get("stanza_pos", {}).get("enabled", True)) and len(_event_feature_targets("pos")) > 0:
     rule qc_pos_all:
         input:
             out_path("qc", "pos", "pos_distribution.png"),
@@ -228,26 +267,39 @@ rule epoch_all:
           cfg=config
         )
 
+rule epoch_noica_all:
+    input:
+        filter_non_existent(
+            expand(
+                out_path("eeg", "epochs_noica", "{subject}_task-{task}_run-{run}_epochs_noica-epo.fif"),
+                subject=SUBJECTS,
+                task=TASKS,
+                run=RUNS,
+            ),
+          bids_root=BIDS_ROOT,
+          cfg=config
+        )
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+
+if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule trf_all:
         input:
             _trf_targets()
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule qc_trf_kernels_all:
         input:
             out_path("figures", "trf_kernels", "manifest.json")
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule qc_trf_alpha_scores_all:
         input:
             out_path("figures", "trf_alpha_scores", "manifest.json")
 
 
-if bool(config.get("trf", {}).get("enabled", False)) and bool(config.get("paths", {}).get("out_dir", config.get("paths", {}).get("derived_root"))):
+if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):
     rule qc_trf_score_tables_all:
         input:
             _trf_qc_score_table_targets()
@@ -269,4 +321,22 @@ rule canary_preprocessing:
         r"""
         mkdir -p "$(dirname {output.done})"
         printf "canary_ok\n" > {output.done}
+        """
+
+
+rule canary_preprocessing_noica:
+    input:
+        ds=out_path("eeg", "downsampled", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_ds.fif"),
+        reref=out_path("eeg", "reref", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_reref.fif"),
+        interp=out_path("eeg", "interpolated_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_interp_noica.fif"),
+        filt=out_path("eeg", "filtered_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_raw_filt_noica.fif"),
+        metadata=out_path("beh", "metadata_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_metadata_noica.tsv"),
+        events=out_path("beh", "metadata_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_events_noica.npy"),
+        epochs=out_path("eeg", "epochs_noica", f"{CANARY_SUBJECT}_task-{CANARY_TASK}_run-{CANARY_RUN}_epochs_noica-epo.fif"),
+    output:
+        done=out_path("canary", "all_noica.done")
+    shell:
+        r"""
+        mkdir -p "$(dirname {output.done})"
+        printf "canary_noica_ok\n" > {output.done}
         """

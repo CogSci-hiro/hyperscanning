@@ -1,8 +1,4 @@
-"""Tests for configuration loading behavior.
-
-These tests guard the single config ingestion boundary used by both CLI and
-library layers.
-"""
+"""Tests for configuration loading behavior."""
 
 from pathlib import Path
 
@@ -31,58 +27,38 @@ def test_load_project_config_rejects_non_mapping_top_level(tmp_path: Path) -> No
         load_project_config(cfg_path)
 
 
-def test_load_project_config_merges_sibling_paths_yaml(tmp_path: Path) -> None:
-    """Sibling `paths.yaml` should supply machine-local path settings."""
+def test_load_project_config_does_not_merge_sibling_sections_by_default(tmp_path: Path) -> None:
+    """Only the explicitly requested sibling fragments should be attached."""
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
-    (tmp_path / "paths.yaml").write_text(
-        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  lm_feature_root: /lm\n  precomputed_ica_root: /ica\n  annotation_root: /ann\n",
-        encoding="utf-8",
-    )
+    (tmp_path / "paths.yaml").write_text("paths:\n  bids_root: /bids\n", encoding="utf-8")
 
     cfg = load_project_config(cfg_path)
 
-    assert cfg.raw["paths"]["bids_root"] == "/bids"
-    assert cfg.raw["paths"]["lm_feature_root"] == "/lm"
-    assert cfg.raw["paths"]["precomputed_ica_root"] == "/ica"
+    assert "paths" not in cfg.raw
 
 
-def test_load_project_config_prefers_inline_paths_over_sibling_paths_yaml(tmp_path: Path) -> None:
-    """Temporary or test configs should be able to override the shared paths file."""
+def test_load_project_config_loads_requested_paths_section(tmp_path: Path) -> None:
+    """Requested path fragments should be loaded and merged with inline overrides."""
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(
         "paths:\n  derived_root: /override\n  precomputed_ica_root: /override-ica\n",
         encoding="utf-8",
     )
     (tmp_path / "paths.yaml").write_text(
-        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  lm_feature_root: /lm\n  precomputed_ica_root: /ica\n  annotation_root: /ann\n",
+        "paths:\n  bids_root: /bids\n  derived_root: /derived\n  lm_feature_root: /lm\n  precomputed_ica_root: /ica\n",
         encoding="utf-8",
     )
 
-    cfg = load_project_config(cfg_path)
+    cfg = load_project_config(cfg_path, sections=("paths",))
 
     assert cfg.raw["paths"]["bids_root"] == "/bids"
     assert cfg.raw["paths"]["derived_root"] == "/override"
     assert cfg.raw["paths"]["precomputed_ica_root"] == "/override-ica"
 
 
-def test_load_project_config_merges_sibling_preprocessing_yaml(tmp_path: Path) -> None:
-    """Sibling `preprocessing.yaml` should populate nested preprocessing settings."""
-    cfg_path = tmp_path / "config.yaml"
-    cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
-    (tmp_path / "preprocessing.yaml").write_text(
-        "preprocessing:\n  downsample:\n    sfreq_hz: 512\n  pipeline_order:\n    - downsample\n",
-        encoding="utf-8",
-    )
-
-    cfg = load_project_config(cfg_path)
-
-    assert cfg.raw["preprocessing"]["downsample"]["sfreq_hz"] == 512
-    assert cfg.raw["preprocessing"]["pipeline_order"] == ["downsample"]
-
-
-def test_load_project_config_prefers_inline_preprocessing_over_sibling_file(tmp_path: Path) -> None:
-    """Temporary configs should still be able to override shared preprocessing settings."""
+def test_load_project_config_loads_requested_preprocessing_section(tmp_path: Path) -> None:
+    """Requested preprocessing fragments should be loaded and allow inline overrides."""
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text("preprocessing:\n  output:\n    save_intermediates: true\n", encoding="utf-8")
     (tmp_path / "preprocessing.yaml").write_text(
@@ -90,30 +66,14 @@ def test_load_project_config_prefers_inline_preprocessing_over_sibling_file(tmp_
         encoding="utf-8",
     )
 
-    cfg = load_project_config(cfg_path)
+    cfg = load_project_config(cfg_path, sections=("preprocessing",))
 
     assert cfg.raw["preprocessing"]["output"]["save_intermediates"] is True
     assert cfg.raw["preprocessing"]["downsample"]["sfreq_hz"] == 512
 
 
-def test_load_project_config_merges_sibling_trf_yaml(tmp_path: Path) -> None:
-    """Sibling `trf.yaml` should populate the dedicated TRF block."""
-    cfg_path = tmp_path / "config.yaml"
-    cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
-    (tmp_path / "trf.yaml").write_text(
-        "trf:\n  enabled: true\n  target_sfreq: 64\n  predictors:\n    - self_speech_envelope\n    - other_speech_envelope\n",
-        encoding="utf-8",
-    )
-
-    cfg = load_project_config(cfg_path)
-
-    assert cfg.raw["trf"]["enabled"] is True
-    assert cfg.raw["trf"]["target_sfreq"] == 64
-    assert cfg.raw["trf"]["predictors"] == ["self_speech_envelope", "other_speech_envelope"]
-
-
-def test_load_project_config_prefers_sibling_trf_over_inline_trf(tmp_path: Path) -> None:
-    """Dedicated `trf.yaml` should override stale inline TRF defaults."""
+def test_load_project_config_loads_requested_trf_section_with_sibling_precedence(tmp_path: Path) -> None:
+    """Dedicated `trf.yaml` should remain the source of truth for TRF defaults."""
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(
         "trf:\n"
@@ -133,7 +93,7 @@ def test_load_project_config_prefers_sibling_trf_over_inline_trf(tmp_path: Path)
         encoding="utf-8",
     )
 
-    cfg = load_project_config(cfg_path)
+    cfg = load_project_config(cfg_path, sections=("trf",))
 
     assert cfg.raw["trf"]["enabled"] is True
     assert cfg.raw["trf"]["predictors"] == [
@@ -142,3 +102,12 @@ def test_load_project_config_prefers_sibling_trf_over_inline_trf(tmp_path: Path)
         "self_f0",
         "other_f0",
     ]
+
+
+def test_load_project_config_rejects_unknown_requested_section(tmp_path: Path) -> None:
+    """Unknown section names should fail fast."""
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("project:\n  name: demo\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Unknown config sections requested"):
+        load_project_config(cfg_path, sections=("bogus",))

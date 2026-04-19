@@ -25,9 +25,9 @@ conda:
 
 
 PREPROCESSING_SAVE_INTERMEDIATES = bool(
-    config.get("preprocessing", {}).get("output", {}).get(
+    PREPROCESSING.get("output", {}).get(
         "save_intermediates",
-        config.get("preprocessing", {}).get("save_intermediates", True),
+        PREPROCESSING.get("save_intermediates", True),
     )
 )
 
@@ -36,7 +36,7 @@ PREPROCESSING_SAVE_INTERMEDIATES = bool(
 #                           Subject discovery
 # =============================================================================
 
-def discover_subjects(cfg: Dict) -> List[str]:
+def discover_subjects(cfg: Dict, paths_cfg: Mapping[str, str]) -> List[str]:
     """
     Discover available BIDS subjects on disk and apply exclusion rules.
 
@@ -72,7 +72,7 @@ def discover_subjects(cfg: Dict) -> List[str]:
         # ['sub-01', 'sub-02', 'sub-04']
     """
     # Root directory where BIDS subject folders live
-    root = Path(cfg["paths"]["bids_root"])
+    root = Path(paths_cfg["bids_root"])
 
     # Glob pattern for subject discovery (e.g., "sub-*")
     # Defaults to BIDS convention if not explicitly set in config
@@ -212,7 +212,7 @@ def out_path(*parts: str) -> str:
         out_path("epochs", "sub-01", "run-01", "epochs_epo.fif")
         # "data/out/epochs/sub-01/run-01/epochs_epo.fif"
     """
-    root = config["paths"].get("out_dir", config["paths"].get("derived_root"))
+    root = PATHS.get("out_dir", PATHS.get("derived_root"))
     return str(Path(root) / Path(*parts))
 
 
@@ -223,7 +223,7 @@ def derived_path(*parts: str) -> str:
 
 def lm_feature_path(*parts: str) -> str:
     """Construct a path under the converted LM feature root."""
-    root = config["paths"].get("lm_feature_root", config["paths"].get("out_dir", config["paths"].get("derived_root")))
+    root = PATHS.get("lm_feature_root", PATHS.get("out_dir", PATHS.get("derived_root")))
     return str(Path(root) / Path(*parts))
 
 
@@ -234,7 +234,7 @@ def precomputed_ica_path(filename: str) -> str:
         .replace("{subject_id}", "{subject}")
         .replace("{run_padded}", "{run}")
     )
-    return str(Path(config["paths"]["precomputed_ica_root"]) / normalized)
+    return str(Path(PATHS["precomputed_ica_root"]) / normalized)
 
 
 def maybe_temp(path: str) -> str:
@@ -264,7 +264,7 @@ def results_path(*parts: str) -> str:
         results_path("fooof", "exponent_results.hdf5")
         # "results/fooof/exponent_results.hdf5"
     """
-    return str(Path(config["paths"]["results_root"]) / Path(*parts))
+    return str(Path(PATHS["results_root"]) / Path(*parts))
 
 
 def reports_path(*parts: str) -> str:
@@ -291,7 +291,7 @@ def reports_path(*parts: str) -> str:
         reports_path("figures", "fooof_qc.png")
         # "reports/figures/fooof_qc.png"
     """
-    return str(Path(config["paths"]["reports_root"]) / Path(*parts))
+    return str(Path(PATHS["reports_root"]) / Path(*parts))
 
 
 def annotation_path(*parts: str) -> str:
@@ -313,7 +313,7 @@ def annotation_path(*parts: str) -> str:
       annotation_path("ipu_v1", "sub-001_run-1_ipu.csv")
       annotations/ipu_v1/sub-001_run-1_ipu.csv
   """
-  return str(Path(config["paths"]["annotation_root"]) / Path(*parts))
+  return str(Path(PATHS["annotation_root"]) / Path(*parts))
 
 
 
@@ -342,7 +342,7 @@ def bids_path(*parts: str) -> str:
         bids_path("sub-01", "eeg", "sub-01_task-conversation_run-01_eeg.edf")
         # "data/bids/sub-01/eeg/sub-01_task-conversation_run-01_eeg.edf"
     """
-    return str(Path(config["paths"]["bids_root"]) / Path(*parts))
+    return str(Path(PATHS["bids_root"]) / Path(*parts))
 
 
 def check_bids_inputs(

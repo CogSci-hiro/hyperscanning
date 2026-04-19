@@ -10,8 +10,9 @@ import sys
 from typing import List
 import yaml
 
-CONFIG_PATH = "config/config.yaml"
-configfile: CONFIG_PATH
+DEFAULT_CONFIG_PATH = "config/config.yaml"
+configfile: DEFAULT_CONFIG_PATH
+ACTIVE_CONFIG_PATH = Path(str(globals().get("configfile", DEFAULT_CONFIG_PATH)))
 
 
 def _load_yaml_mapping(path: Path) -> dict:
@@ -24,47 +25,38 @@ def _load_yaml_mapping(path: Path) -> dict:
     return data
 
 
-def _merge_mapping_sections(external: dict, base: dict, *, sections: tuple[str, ...]) -> dict:
-    merged = dict(external)
-    for section in sections:
-        merged[section] = {**dict(external.get(section, {})), **dict(base.get(section, {}))}
-    for key, value in base.items():
-        if key in sections:
-            continue
-        merged[key] = value
-    return merged
+def _load_section(section_name: str, *, external_precedence: bool = False) -> dict:
+    base_section = config.get(section_name, {})
+    if base_section is None:
+        base_section = {}
+    if not isinstance(base_section, dict):
+        raise ValueError(f"Expected mapping for config section {section_name!r}, got {type(base_section)}")
+
+    section_path = ACTIVE_CONFIG_PATH.with_name(f"{section_name}.yaml")
+    external_section = {}
+    if section_path.exists():
+        external_cfg = _load_yaml_mapping(section_path)
+        external_section = external_cfg.get(section_name, {})
+        if external_section is None:
+            external_section = {}
+        if not isinstance(external_section, dict):
+            raise ValueError(
+                f"Expected mapping for config section {section_name!r} in {section_path}, got {type(external_section)}"
+            )
+
+    if external_precedence:
+        return {**dict(base_section), **dict(external_section)}
+    return {**dict(external_section), **dict(base_section)}
 
 
-def _merge_mapping_sections_external_precedence(external: dict, base: dict, *, sections: tuple[str, ...]) -> dict:
-    merged = dict(base)
-    for section in sections:
-        merged[section] = {**dict(base.get(section, {})), **dict(external.get(section, {}))}
-    for key, value in external.items():
-        if key in sections:
-            continue
-        merged.setdefault(key, value)
-    return merged
+def _config_signature(*parts: dict) -> str:
+    return yaml.safe_dump(list(parts), sort_keys=True)
 
 
-_preprocessing_config_path = Path(CONFIG_PATH).with_name("preprocessing.yaml")
-if _preprocessing_config_path.exists():
-    _preprocessing_cfg = _load_yaml_mapping(_preprocessing_config_path)
-    config.update(_merge_mapping_sections(_preprocessing_cfg, config, sections=("preprocessing",)))
-
-_features_config_path = Path(CONFIG_PATH).with_name("features.yaml")
-if _features_config_path.exists():
-    _features_cfg = _load_yaml_mapping(_features_config_path)
-    config.update(_merge_mapping_sections(_features_cfg, config, sections=("features",)))
-
-_trf_config_path = Path(CONFIG_PATH).with_name("trf.yaml")
-if _trf_config_path.exists():
-    _trf_cfg = _load_yaml_mapping(_trf_config_path)
-    config.update(_merge_mapping_sections_external_precedence(_trf_cfg, config, sections=("trf",)))
-
-_paths_config_path = Path(CONFIG_PATH).with_name("paths.yaml")
-if _paths_config_path.exists():
-    _paths_cfg = _load_yaml_mapping(_paths_config_path)
-    config.update(_merge_mapping_sections(_paths_cfg, config, sections=("paths",)))
+PREPROCESSING = _load_section("preprocessing")
+FEATURES = _load_section("features")
+TRF = _load_section("trf", external_precedence=True)
+PATHS = _load_section("paths")
 
 # In Snakefile (global)
 wildcard_constraints:
@@ -80,7 +72,7 @@ HYPER_PYTHON = PROJECT_ROOT / ".venv" / "bin" / "python"
 if not HYPER_PYTHON.exists():
     HYPER_PYTHON = Path(sys.executable)
 HYPER_MODULE_CMD = f"PYTHONPATH=src {shlex.quote(str(HYPER_PYTHON))} -m hyper.cli.main"
-PREPROCESSING_PIPELINE_ORDER = list((config.get("preprocessing") or {}).get("pipeline_order", []))
+PREPROCESSING_PIPELINE_ORDER = list(PREPROCESSING.get("pipeline_order", []))
 EXPECTED_PREPROCESSING_PIPELINE_ORDER = [
     "separate_drop_channels",
     "downsample",
@@ -102,7 +94,7 @@ include: str(WORKFLOW_DIR / "rules" / "common.smk")
 DEBUG_ENABLED = bool(config.get("debug", {}).get("enabled", False))
 DEBUG_SUBJECTS = list(config.get("debug", {}).get("subjects", []))
 
-SUBJECTS_ALL = SUBJECTS = discover_subjects(config)
+SUBJECTS_ALL = SUBJECTS = discover_subjects(config, PATHS)
 if DEBUG_ENABLED:
     if len(DEBUG_SUBJECTS) == 0:
         raise ValueError("debug.enabled is true but debug.subjects is empty.")
@@ -125,9 +117,17 @@ CANARY_TASK = str(CANARY_CFG.get("task", "conversation"))
 CANARY_RUN = str(CANARY_CFG.get("run", "1"))
 
 # Set canonical roots (single source of truth)
-BIDS_ROOT = Path(config["paths"]["bids_root"])
-OUT_DIR = Path(config["paths"].get("out_dir", config["paths"].get("derived_root")))
-ANNOT_ROOT = Path(config["paths"]["annotation_root"])
+BIDS_ROOT = Path(PATHS["bids_root"])
+OUT_DIR = Path(PATHS.get("out_dir", PATHS.get("derived_root")))
+ANNOT_ROOT = Path(PATHS["annotation_root"])
+
+EPOCH_SETTINGS = {
+    "tmin_s": float(config.get("epochs", {}).get("tmin_s", -2.2)),
+    "tmax_s": float(config.get("epochs", {}).get("tmax_s", 0.5)),
+    "detrend": int(config.get("epochs", {}).get("detrend", 1)),
+    "baseline_start_s": float(config.get("epochs", {}).get("baseline_start_s", -2.2)),
+    "baseline_end_s": float(config.get("epochs", {}).get("baseline_end_s", 0.5)),
+}
 
 include: str(WORKFLOW_DIR / "rules" / "preprocessing.smk")
 include: str(WORKFLOW_DIR / "rules" / "features.smk")

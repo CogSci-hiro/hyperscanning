@@ -23,10 +23,10 @@ trf:
   ablation_targets:
     - self_speech_envelope
     - other_speech_envelope
-    - self_token_onsets
-    - other_token_onsets
-    - self_surprisal
-    - other_surprisal
+    #- self_token_onsets
+    #- other_token_onsets
+    #- self_surprisal
+    #- other_surprisal
   target_sfreq: 64.0
   lags:
     tmin_seconds: -0.20
