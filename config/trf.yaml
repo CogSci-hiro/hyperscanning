@@ -11,10 +11,10 @@ trf:
     #- other_phoneme_onsets
     #- self_syllable_onsets
     #- other_syllable_onsets
-    - self_token_onsets
-    - other_token_onsets
-    - self_surprisal
-    - other_surprisal
+    #- self_token_onsets
+    #- other_token_onsets
+    #- self_surprisal
+    #- other_surprisal
     #- self_entropy
     #- other_entropy
   qc_predictors:
