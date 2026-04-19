@@ -237,12 +237,12 @@ def _sidecar_payload(
         "FeatureLabel": f"LM {metric.name.title()} features",
         "FeatureType": "event",
         "Description": metric.description,
-        "TimeBase": "seconds_from_run_onset",
+        "TimeBase": "seconds_from_conversation_onset",
         "Delimiter": "tab",
-        "RowDefinition": "One row represents one original SPPAS token row aligned to the run timeline.",
+        "RowDefinition": "One row represents one original SPPAS token row aligned to the conversation timeline.",
         "Columns": {
             "onset": {
-                "Description": "Token onset time relative to run onset.",
+                "Description": "Token onset time relative to conversation onset.",
                 "Units": "s",
                 "DType": "float",
                 "Levels": None,

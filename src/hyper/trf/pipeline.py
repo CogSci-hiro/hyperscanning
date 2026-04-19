@@ -145,7 +145,7 @@ PREDICTOR_SPECS: dict[str, PredictorSpec] = {
         path_root="lm",
         onset_column="onset",
         value_columns=("surprisal",),
-        aligned_to_conversation=False,
+        aligned_to_conversation=True,
     ),
     "other_surprisal": PredictorSpec(
         "event",
@@ -155,7 +155,7 @@ PREDICTOR_SPECS: dict[str, PredictorSpec] = {
         path_root="lm",
         onset_column="onset",
         value_columns=("surprisal",),
-        aligned_to_conversation=False,
+        aligned_to_conversation=True,
     ),
     "self_entropy": PredictorSpec(
         "event",
@@ -165,7 +165,7 @@ PREDICTOR_SPECS: dict[str, PredictorSpec] = {
         path_root="lm",
         onset_column="onset",
         value_columns=("entropy",),
-        aligned_to_conversation=False,
+        aligned_to_conversation=True,
     ),
     "other_entropy": PredictorSpec(
         "event",
@@ -175,7 +175,7 @@ PREDICTOR_SPECS: dict[str, PredictorSpec] = {
         path_root="lm",
         onset_column="onset",
         value_columns=("entropy",),
-        aligned_to_conversation=False,
+        aligned_to_conversation=True,
     ),
 }
 
@@ -296,6 +296,12 @@ def _partner_subject_id(subject_id: str) -> str:
     return f"sub-{partner_num:03d}"
 
 
+def _speaker_for_subject_id(subject_id: str) -> str:
+    """Return the canonical A/B speaker label implied by the subject id."""
+    subject_num = int(str(subject_id).removeprefix("sub-"))
+    return "A" if (subject_num % 2 == 1) else "B"
+
+
 def _predictor_path(
     paths: ProjectPaths,
     *,
@@ -412,9 +418,26 @@ def _load_event_predictor(
     target_sfreq: float,
     target_length: int,
     onset_offset_seconds: float,
+    expected_speaker: str | None = None,
 ) -> np.ndarray:
     """Rasterize an event TSV into one or more single-sample event predictors."""
     table = pd.read_csv(event_path, sep="\t")
+    if expected_speaker is not None:
+        if "speaker" not in table.columns:
+            raise ValueError(
+                f"LM event predictor table missing required 'speaker' column for validation: {event_path}"
+            )
+        observed_speakers = {
+            str(value).strip()
+            for value in table["speaker"].dropna().unique().tolist()
+            if str(value).strip()
+        }
+        if len(observed_speakers) > 0 and observed_speakers != {expected_speaker}:
+            observed_text = ", ".join(sorted(observed_speakers))
+            raise ValueError(
+                "LM event predictor speaker mismatch: "
+                f"expected only {expected_speaker!r} rows in {event_path}, found {observed_text}."
+            )
     resolved_onset_column = onset_column
     if resolved_onset_column is None:
         if "onset" in table.columns:
@@ -469,7 +492,7 @@ def _load_predictor_matrix(
     conversation_start_seconds: float,
 ) -> np.ndarray:
     """Load and align heterogeneous predictor families onto a shared TRF time base."""
-    del paths, subject_id, task, run_id
+    del paths, task, run_id
     columns: list[np.ndarray] = []
     for predictor_name, predictor_path in zip(predictor_names, predictor_paths, strict=True):
         spec = _predictor_spec(predictor_name)
@@ -480,6 +503,10 @@ def _load_predictor_matrix(
                 column = column[:, np.newaxis]
             column = _resample_array(column, source_sfreq=source_sfreq, target_sfreq=target_sfreq)
         elif spec.storage_kind == "event":
+            expected_speaker = None
+            if spec.path_root == "lm":
+                storage_subject = _partner_subject_id(subject_id) if spec.role == "other" else subject_id
+                expected_speaker = _speaker_for_subject_id(storage_subject)
             column = _load_event_predictor(
                 predictor_path,
                 onset_column=spec.onset_column,
@@ -487,6 +514,7 @@ def _load_predictor_matrix(
                 target_sfreq=target_sfreq,
                 target_length=target_length,
                 onset_offset_seconds=0.0 if spec.aligned_to_conversation else conversation_start_seconds,
+                expected_speaker=expected_speaker,
             )
         else:
             raise ValueError(f"Unsupported predictor storage kind: {spec.storage_kind!r}")
