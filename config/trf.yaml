@@ -33,7 +33,7 @@ trf:
     - other_word_class_onsets
     - other_surprisal
     - other_entropy
-  target_sfreq: 32.0
+  target_sfreq: 64.0
   lags:
     tmin_seconds: -0.20
     tmax_seconds: 1.0
@@ -57,9 +57,9 @@ trf:
   hyperparameters:
     alpha:
       scale: logspace
-      start_exp: 1 #-1
-      stop_exp: 2
-      num: 2
+      start_exp: -1
+      stop_exp: 8
+      num: 10
   model:
     estimator: ridge
     fit_intercept: false
