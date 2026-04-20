@@ -88,10 +88,19 @@ def _remove_joint_annotation_text(figure: plt.Figure) -> None:
             text.set_text("")
 
 
-def _raise_joint_title(figure: plt.Figure, *, y: float = 1.16) -> None:
-    """Move the figure title higher up."""
-    if hasattr(figure, "_suptitle") and figure._suptitle is not None:
-        figure._suptitle.set_y(float(y))
+def _adjust_topomap_titles(figure: plt.Figure, *, y: float = 1.14) -> None:
+    """Move topomap subplot titles upward."""
+    for axis in getattr(figure, "axes", []):
+        if not hasattr(axis, "get_title") or not hasattr(axis, "title"):
+            continue
+        if not str(axis.get_title()).strip():
+            continue
+        if hasattr(axis.title, "set_y"):
+            axis.title.set_y(float(y))
+        if hasattr(axis.title, "get_fontsize") and hasattr(axis.title, "set_fontsize"):
+            fontsize = axis.title.get_fontsize()
+            if fontsize is not None:
+                axis.title.set_fontsize(float(fontsize) * 0.8)
 
 
 def _tighten_joint_vertical_spacing(figure: plt.Figure, *, main_axis: plt.Axes | None) -> None:
@@ -304,7 +313,7 @@ def plot_joint_map(
                 text.set_fontsize(float(fontsize) * float(font_scale))
 
     _remove_joint_annotation_text(figure)
-    _raise_joint_title(figure, y=1.08)
+    _adjust_topomap_titles(figure, y=1.14)
 
     if compact_vertical and all(hasattr(axis, "get_position") and hasattr(axis, "set_position") for axis in figure.axes):
         positions = [axis.get_position() for axis in figure.axes]
