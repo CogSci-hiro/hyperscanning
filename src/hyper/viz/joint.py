@@ -14,6 +14,20 @@ from matplotlib import pyplot as plt
 matplotlib.use("Agg")
 
 
+class _NoColorbarTopomapArgs(dict):
+    """Dict-like topomap args that suppress joint-plot colorbars safely."""
+
+    def copy(self):  # noqa: D401
+        """Return a copy that preserves the no-colorbar behavior."""
+        return _NoColorbarTopomapArgs(self)
+
+    def get(self, key, default=None):  # noqa: ANN001, D401
+        """Report `colorbar=False` without passing the key downstream."""
+        if key == "colorbar":
+            return False
+        return super().get(key, default)
+
+
 def infer_sfreq(times: np.ndarray) -> float:
     """Infer sampling frequency from a 1D time vector."""
     time_array = np.asarray(times, dtype=float)
@@ -42,6 +56,73 @@ def _extract_overlapping_channels(message: str) -> list[str]:
     if not lines:
         return []
     return [name.strip() for name in lines[-1].split(",") if name.strip()]
+
+
+def _remove_colorbar_like_axes(figure: plt.Figure) -> None:
+    """Remove narrow auxiliary axes that behave like colorbars."""
+    removable_axes = []
+    for axis in list(getattr(figure, "axes", [])):
+        if not hasattr(axis, "get_position"):
+            continue
+        position = axis.get_position()
+        width = float(getattr(position, "width", 0.0))
+        height = float(getattr(position, "height", 0.0))
+        if width <= 0.0 or height <= 0.0:
+            continue
+        if width >= 0.09 or height <= 0.12:
+            continue
+        if getattr(axis, "images", []):
+            continue
+        removable_axes.append(axis)
+    for axis in removable_axes:
+        if hasattr(axis, "remove"):
+            axis.remove()
+
+
+def _remove_joint_annotation_text(figure: plt.Figure) -> None:
+    """Remove boilerplate MNE joint-plot annotations we do not want."""
+    for text in list(figure.findobj(matplotlib.text.Text)) if hasattr(figure, "findobj") else []:
+        content = str(text.get_text()).strip()
+        normalized = content.lower().replace(" ", "")
+        if "n$_{\\mathrm{ave}}$" in normalized or normalized.startswith("nave") or normalized == "loading...":
+            text.set_text("")
+
+
+def _raise_joint_title(figure: plt.Figure, *, y: float = 1.16) -> None:
+    """Move the figure title higher up."""
+    if hasattr(figure, "_suptitle") and figure._suptitle is not None:
+        figure._suptitle.set_y(float(y))
+
+
+def _tighten_joint_vertical_spacing(figure: plt.Figure, *, main_axis: plt.Axes | None) -> None:
+    """Reduce the gap between the main time-course axis and the topomap row."""
+    if main_axis is None or not hasattr(main_axis, "get_position") or not hasattr(main_axis, "set_position"):
+        return
+    top_axes = [
+        axis
+        for axis in getattr(figure, "axes", [])
+        if axis is not main_axis and hasattr(axis, "get_position") and hasattr(axis, "set_position")
+    ]
+    if len(top_axes) == 0:
+        return
+
+    main_position = main_axis.get_position()
+    top_positions = [axis.get_position() for axis in top_axes]
+    top_row_min_y0 = min(float(position.y0) for position in top_positions)
+    desired_gap = 0.002
+    shift = top_row_min_y0 - (float(main_position.y1) + desired_gap)
+    if shift <= 0:
+        return
+
+    for axis, position in zip(top_axes, top_positions, strict=True):
+        axis.set_position([position.x0, position.y0 - shift, position.width, position.height])
+
+    updated_main = main_axis.get_position()
+    new_height = max(
+        0.05,
+        min(0.992 - float(updated_main.y0), top_row_min_y0 - shift - desired_gap - float(updated_main.y0)),
+    )
+    main_axis.set_position([updated_main.x0, updated_main.y0, updated_main.width, new_height])
 
 
 def pick_peak_indices(score: np.ndarray, *, n_peaks: int, min_separation: int) -> list[int]:
@@ -128,6 +209,10 @@ def plot_joint_map(
     line_width: float = 2.5,
     joint_times: str | Sequence[float] = "peaks",
     significance_mask: np.ndarray | None = None,
+    font_scale: float = 1.0,
+    ylabel: str | None = None,
+    show_colorbar: bool = True,
+    compact_vertical: bool = False,
 ) -> list[Path]:
     """Render one channel-by-time map as an MNE joint plot."""
     os.environ.setdefault("NUMBA_DISABLE_JIT", "1")
@@ -175,6 +260,8 @@ def plot_joint_map(
             "linestyle": "None",
             "markersize": 8.0,
         }
+    if not show_colorbar:
+        topomap_args = _NoColorbarTopomapArgs(topomap_args)
 
     try:
         figure = evoked.plot_joint(times=selected_joint_times, title=title, show=False, topomap_args=topomap_args)
@@ -196,15 +283,49 @@ def plot_joint_map(
             topomap_args=reduced_topomap_args,
         )
 
+    line_axes = [axis for axis in figure.axes if axis.lines]
+    main_axis = max(line_axes, key=lambda axis: len(axis.lines)) if line_axes else None
+
     for axis in figure.axes:
         for line in axis.lines:
             line.set_linewidth(float(line_width))
 
+    if ylabel is not None and main_axis is not None and hasattr(main_axis, "set_ylabel"):
+        main_axis.set_ylabel(str(ylabel))
+    if main_axis is not None and hasattr(main_axis, "set_yticks"):
+        main_axis.set_yticks([])
+
+    if float(font_scale) != 1.0 and hasattr(figure, "findobj"):
+        for text in figure.findobj(matplotlib.text.Text):
+            if not hasattr(text, "get_fontsize") or not hasattr(text, "set_fontsize"):
+                continue
+            fontsize = text.get_fontsize()
+            if fontsize is not None:
+                text.set_fontsize(float(fontsize) * float(font_scale))
+
+    _remove_joint_annotation_text(figure)
+    _raise_joint_title(figure, y=1.08)
+
+    if compact_vertical and all(hasattr(axis, "get_position") and hasattr(axis, "set_position") for axis in figure.axes):
+        positions = [axis.get_position() for axis in figure.axes]
+        min_y0 = min(position.y0 for position in positions)
+        max_y1 = max(position.y1 for position in positions)
+        span = max(max_y1 - min_y0, 1e-6)
+        target_min_y0 = 0.005
+        target_max_y1 = 0.995
+        target_span = target_max_y1 - target_min_y0
+        for axis, position in zip(figure.axes, positions, strict=True):
+            new_y0 = target_min_y0 + ((position.y0 - min_y0) / span) * target_span
+            new_y1 = target_min_y0 + ((position.y1 - min_y0) / span) * target_span
+            axis.set_position([position.x0, new_y0, position.width, new_y1 - new_y0])
+        _tighten_joint_vertical_spacing(figure, main_axis=main_axis)
+
+    if not show_colorbar:
+        _remove_colorbar_like_axes(figure)
+
     if significance_array is not None and np.any(significance_array):
         significant_time_mask = np.any(significance_array, axis=0)
-        line_axes = [axis for axis in figure.axes if axis.lines]
-        if line_axes:
-            main_axis = max(line_axes, key=lambda axis: len(axis.lines))
+        if main_axis is not None:
             for start_time, end_time in contiguous_true_spans(significant_time_mask, time_array):
                 main_axis.axvspan(start_time, end_time, color="0.85", alpha=0.7, zorder=0)
 

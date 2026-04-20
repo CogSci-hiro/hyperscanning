@@ -53,7 +53,9 @@ _COMMANDS: dict[str, str | CliCommand] = {
     "trf-alpha-qc": "hyper.cli.commands.trf_alpha_qc",
     "trf-score-qc": "hyper.cli.commands.trf_score_qc",
     "trf-score-qc-figure": "hyper.cli.commands.trf_score_qc_figure",
+    "trf-main-figure": "hyper.cli.commands.trf_main_figure",
     "speech-artefact-qc": "hyper.cli.commands.speech_artefact_qc",
+    "ipu-turn-taking-figure": "hyper.cli.commands.ipu_turn_taking_figure",
 }
 
 _COMMAND_CONFIG_SECTIONS: dict[str, tuple[str, ...]] = {
@@ -77,7 +79,9 @@ _COMMAND_CONFIG_SECTIONS: dict[str, tuple[str, ...]] = {
     "trf-alpha-qc": ("paths", "trf"),
     "trf-score-qc": ("paths", "trf"),
     "trf-score-qc-figure": ("paths", "trf", "viz"),
+    "trf-main-figure": ("paths", "trf", "viz"),
     "speech-artefact-qc": ("paths", "preprocessing", "viz"),
+    "ipu-turn-taking-figure": ("paths", "viz"),
 }
 
 

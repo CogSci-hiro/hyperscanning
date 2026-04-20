@@ -296,7 +296,9 @@ rule epoch_noica_all:
 rule main_figures_all:
     input:
         reports_path("figures", str(VIZ.get("speech_artefact", {}).get("filename", "speech_artefact_summary.png"))),
-        reports_path("figures", str(VIZ.get("trf_score", {}).get("filename", "trf_score_summary.png")))
+        reports_path("figures", str(VIZ.get("trf_score", {}).get("filename", "trf_score_summary.png"))),
+        reports_path("figures", str(VIZ.get("trf_main_figure", {}).get("filename", "trf_main_figure_summary.png"))),
+        reports_path("figures", str(VIZ.get("ipu_turn_taking", {}).get("filename", "ipu_turn_taking_summary.png")))
 
 
 if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):

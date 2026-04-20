@@ -29,3 +29,46 @@ viz:
       other_surprisal: surprisal
       other_entropy: entropy
       other_word_class_onsets: POS
+  trf_main_figure:
+    task: "conversation"
+    filename: "trf_main_figure_summary.png"
+    dpi: 300
+    panel_dpi: 240
+    figsize:
+      width: 18.0
+      height: 18.0
+    layout:
+      rows: 3
+      cols: 3
+    joint_times_seconds: [0.10, 0.20, 0.35]
+    joint_plot:
+      line_width: 2.8
+      font_scale: 3.0
+      ylabel: "A.U."
+      show_colorbar: false
+      compact_vertical: true
+    features:
+      - predictor: other_speech_envelope
+        label: envelope
+      - predictors: [other_f1, other_f2]
+        label: vowel
+      - predictor: other_f0
+        label: F0
+      - predictor: other_phoneme_onsets
+        label: phoneme
+      - predictor: other_syllable_onsets
+        label: syllable
+      - predictor: other_token_onsets
+        label: words
+      - predictor: other_surprisal
+        label: surprisal
+      - predictor: other_entropy
+        label: entropy
+      - predictors: [other_function_word_onsets, other_content_word_onsets]
+        label: POS
+  ipu_turn_taking:
+    filename: "ipu_turn_taking_summary.png"
+    dpi: 300
+    figsize:
+      width: 24.0
+      height: 7.5

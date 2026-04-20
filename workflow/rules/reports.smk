@@ -47,6 +47,15 @@ def _speech_artefact_cli_args(flag: str, values):
 def _trf_score_task() -> str:
     return str(VIZ.get("trf_score", {}).get("task", "conversation"))
 
+
+def _trf_main_figure_filename() -> str:
+    return str(VIZ.get("trf_main_figure", {}).get("filename", "trf_main_figure_summary.png"))
+
+
+def _ipu_turn_taking_inputs():
+    annotation_dir = Path(PATHS["annotation_root"]) / str(config["annotations"]["ipu"])
+    return sorted(str(path) for path in annotation_dir.glob("sub-*_run-*_ipu.csv"))
+
 rule fooof_qc_figure:
     input:
       filter_non_existent(
@@ -116,5 +125,43 @@ rule trf_score_qc_figure:
           --config {params.config_path} \
           --eeg-table {input.eeg_table} \
           --feature-table {input.feature_table} \
+          --out-fig {output.fig}
+        """
+
+
+rule trf_main_figure:
+    input:
+        _trf_qc_inputs
+    output:
+        fig=reports_path("figures", _trf_main_figure_filename())
+    params:
+        config_path=str(ACTIVE_CONFIG_PATH),
+        config_signature=lambda wildcards: TRF_SIGNATURE
+    conda:
+        CONDA_PY_ENV
+    threads: 1
+    resources:
+        mem_mb=4_000
+    shell:
+        r"""
+        {HYPER_MODULE_CMD} trf-main-figure \
+          --config {params.config_path} \
+          --out-fig {output.fig}
+        """
+
+
+rule ipu_turn_taking_figure:
+    input:
+        ipu_csvs=_ipu_turn_taking_inputs()
+    output:
+        fig=reports_path("figures", str(VIZ.get("ipu_turn_taking", {}).get("filename", "ipu_turn_taking_summary.png")))
+    params:
+        config_path=str(ACTIVE_CONFIG_PATH)
+    conda:
+        CONDA_PY_ENV
+    shell:
+        r"""
+        {HYPER_MODULE_CMD} ipu-turn-taking-figure \
+          --config {params.config_path} \
           --out-fig {output.fig}
         """
