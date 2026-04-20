@@ -4,7 +4,7 @@ viz:
     filename: "speech_artefact_summary.png"
     dpi: 300
     figsize:
-      width: 15.0
+      width: 20.0
       height: 4.5
     psd:
       method: "welch"
@@ -15,6 +15,7 @@ viz:
     task: "conversation"
     filename: "trf_score_summary.png"
     dpi: 300
+    x_tick_label_scale: 0.7
     figsize:
       width: 13.0
       height: 4.5
