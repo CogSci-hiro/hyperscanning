@@ -53,7 +53,7 @@ viz:
         joint_times_seconds: [0.05, 0.16, 0.3]
       - predictors: [other_f1, other_f2]
         label: vowel
-        joint_times_seconds: [0.05, 0.18, 0.40]
+        joint_times_seconds: [0.05, 0.18, 0.45]
       - predictor: other_f0
         label: F0
         joint_times_seconds: [0.02, 0.15, 0.40]
