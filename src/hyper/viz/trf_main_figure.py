@@ -35,6 +35,7 @@ class PanelFeatureSpec:
 
     predictors: tuple[str, ...]
     label: str
+    joint_times_seconds: tuple[float, ...] | None = None
 
 
 def _trf_main_figure_cfg(cfg: ProjectConfig) -> dict:
@@ -104,7 +105,13 @@ def _panel_features(cfg: ProjectConfig) -> list[PanelFeatureSpec]:
         if len(predictors) == 0:
             raise ValueError("Feature mappings must define at least one predictor.")
         label = str(item.get("label", predictors[0]))
-        resolved.append(PanelFeatureSpec(predictors=predictors, label=label))
+        joint_times_value = item.get("joint_times_seconds")
+        joint_times_seconds = None
+        if joint_times_value is not None:
+            if not isinstance(joint_times_value, list) or len(joint_times_value) == 0:
+                raise ValueError("Feature-specific `joint_times_seconds` must be a non-empty list when present.")
+            joint_times_seconds = tuple(float(time_point) for time_point in joint_times_value)
+        resolved.append(PanelFeatureSpec(predictors=predictors, label=label, joint_times_seconds=joint_times_seconds))
     if len(resolved) == 0:
         raise ValueError("Config section `viz.trf_main_figure.features` must list at least one predictor.")
     return resolved
@@ -248,6 +255,11 @@ def build_trf_main_figure(
             )
             kernel_map = np.nanmean(kernel_cube, axis=1).T
             title = feature_labels.get(feature.predictors[0], feature.label)
+            feature_joint_times = (
+                np.asarray(feature.joint_times_seconds, dtype=float)
+                if feature.joint_times_seconds is not None
+                else joint_times
+            )
             output_stem = Path(tmpdir) / sanitize_token(title)
             written_paths = plot_joint_map(
                 kernel_map,
@@ -258,7 +270,7 @@ def build_trf_main_figure(
                 formats=("png",),
                 dpi=_panel_dpi(cfg),
                 line_width=_line_width(cfg),
-                joint_times=joint_times,
+                joint_times=feature_joint_times,
                 font_scale=_font_scale(cfg),
                 ylabel=_ylabel(cfg),
                 show_colorbar=_show_colorbar(cfg),

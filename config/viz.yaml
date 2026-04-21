@@ -50,22 +50,31 @@ viz:
     features:
       - predictor: other_speech_envelope
         label: envelope
+        joint_times_seconds: [0.05, 0.16, 0.3]
       - predictors: [other_f1, other_f2]
         label: vowel
+        joint_times_seconds: [0.05, 0.18, 0.40]
       - predictor: other_f0
         label: F0
+        joint_times_seconds: [0.02, 0.15, 0.40]
       - predictor: other_phoneme_onsets
         label: phoneme
+        joint_times_seconds: [0.08, 0.20, 0.5]
       - predictor: other_syllable_onsets
         label: syllable
+        joint_times_seconds: [0.10, 0.35, 0.45]
       - predictor: other_token_onsets
         label: words
+        joint_times_seconds: [0.20, 0.40, 0.55]
       - predictor: other_surprisal
         label: surprisal
+        joint_times_seconds: [0.3, 0.40, 0.70]
       - predictor: other_entropy
         label: entropy
+        joint_times_seconds: [0.20, 0.40, 0.70]
       - predictors: [other_function_word_onsets, other_content_word_onsets]
         label: POS
+        joint_times_seconds: [0.20, 0.35, 0.50]
   ipu_turn_taking:
     filename: "ipu_turn_taking_summary.png"
     dpi: 300

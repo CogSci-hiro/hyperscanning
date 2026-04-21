@@ -39,7 +39,7 @@ def test_build_trf_main_figure_renders_configured_feature_grid(
                         "compact_vertical": True,
                     },
                     "features": [
-                        {"predictor": "feat_a", "label": "Feature A"},
+                        {"predictor": "feat_a", "label": "Feature A", "joint_times_seconds": [0.05, 0.15, 0.25]},
                         {"predictors": ["feat_b", "feat_c"], "label": "Feature BC"},
                     ],
                 }
@@ -120,4 +120,5 @@ def test_build_trf_main_figure_renders_configured_feature_grid(
     assert all(call["ylabel"] == "A.U." for call in calls)
     assert all(call["show_colorbar"] is False for call in calls)
     assert all(call["compact_vertical"] is True for call in calls)
-    np.testing.assert_allclose(calls[0]["joint_times"], np.array([0.1, 0.2, 0.3], dtype=float))
+    np.testing.assert_allclose(calls[0]["joint_times"], np.array([0.05, 0.15, 0.25], dtype=float))
+    np.testing.assert_allclose(calls[1]["joint_times"], np.array([0.1, 0.2, 0.3], dtype=float))
