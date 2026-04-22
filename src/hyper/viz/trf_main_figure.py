@@ -215,6 +215,24 @@ def _load_group_average_kernel_data(cfg: ProjectConfig, *, task: str) -> GroupAv
     )
 
 
+def _write_placeholder_figure(
+    output_path: Path,
+    *,
+    cfg: ProjectConfig,
+    title: str,
+    message: str,
+) -> Path:
+    """Write a simple placeholder figure when TRF kernels are unavailable."""
+    figure, axis = plt.subplots(1, 1, figsize=_figure_size(cfg), dpi=_figure_dpi(cfg))
+    axis.axis("off")
+    axis.text(0.5, 0.62, title, ha="center", va="center", fontsize=22, fontweight="semibold", transform=axis.transAxes)
+    axis.text(0.5, 0.42, message, ha="center", va="center", fontsize=16, transform=axis.transAxes, wrap=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=_figure_dpi(cfg), bbox_inches="tight")
+    plt.close(figure)
+    return output_path
+
+
 def build_trf_main_figure(
     *,
     cfg: ProjectConfig,
@@ -222,7 +240,18 @@ def build_trf_main_figure(
 ) -> Path:
     """Render a grid of feature-specific TRF joint plots into one summary figure."""
     task = _task(cfg)
-    data = _load_group_average_kernel_data(cfg, task=task)
+    output_path = Path(output_path)
+    try:
+        data = _load_group_average_kernel_data(cfg, task=task)
+    except ValueError as exc:
+        if "No TRF kernels were available" not in str(exc):
+            raise
+        return _write_placeholder_figure(
+            output_path,
+            cfg=cfg,
+            title="TRF main figure unavailable",
+            message=f"No TRF kernels were available for task={task}.",
+        )
     features = _panel_features(cfg)
     feature_labels = _feature_labels(cfg)
     joint_times = _joint_times(cfg)

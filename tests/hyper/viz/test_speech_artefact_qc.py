@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from hyper.config import ProjectConfig
 from hyper.viz import speech_artefact_qc as mod
@@ -126,6 +127,23 @@ def test_build_speech_artefact_summary_figure_writes_expected_path(monkeypatch, 
     assert saved["gap_adjust_2"] == (axes, mod.SECOND_THIRD_GAP_REDUCTION)
     assert saved["closed"] is figure
     assert "title" not in saved
+
+
+def test_build_speech_artefact_summary_figure_writes_placeholder_when_inputs_missing(tmp_path: Path) -> None:
+    """Missing report inputs should produce a placeholder figure instead of raising."""
+    cfg = ProjectConfig(raw={"viz": {"speech_artefact": {"dpi": 123, "figsize": {"width": 9.0, "height": 3.0}}}})
+
+    output_path = tmp_path / "reports" / "speech_artefact_summary.png"
+    written = mod.build_speech_artefact_summary_figure(
+        cfg=cfg,
+        filtered_noica_paths=[],
+        filtered_paths=[],
+        ica_paths=[],
+        output_path=output_path,
+    )
+
+    assert written == output_path
+    assert output_path.exists()
 
 
 def test_load_average_psd_uses_requested_method_and_per_channel_average(monkeypatch, tmp_path: Path) -> None:
@@ -449,9 +467,10 @@ def test_plot_component_counts_sets_barplot_headroom_and_tilt() -> None:
     assert captured["xticks"][3] == "right"
     assert captured["ylabel"] == "Number of components"
     assert captured["title"] == "ICA component counts"
-    assert captured["ylim"] == (0.0, 68.0)
-    assert captured["legend"]["loc"] == "upper left"
-    assert captured["legend"]["bbox_to_anchor"] == (1.02, 1.0)
+    assert captured["ylim"] == (0.0, 75.0)
+    assert captured["legend"]["loc"] == "upper center"
+    assert captured["legend"]["bbox_to_anchor"] == (0.5, 0.98)
+    assert captured["legend"]["ncol"] == 3
 
 
 def test_scale_figure_fonts_multiplies_text_sizes() -> None:
@@ -520,8 +539,8 @@ def test_tune_speech_artefact_fonts_applies_panel_specific_scales() -> None:
 
     mod._tune_speech_artefact_fonts(axes)
 
-    assert axes[0].yaxis.label.get_fontsize() == 21.0
-    assert axes[1].yaxis.label.get_fontsize() == 21.0
-    assert axes[2].yaxis.label.get_fontsize() == 21.0
+    assert axes[0].yaxis.label.get_fontsize() == pytest.approx(31.59)
+    assert axes[1].yaxis.label.get_fontsize() == pytest.approx(31.59)
+    assert axes[2].yaxis.label.get_fontsize() == pytest.approx(31.59)
     assert [tick.get_fontsize() for tick in axes[2].get_xticklabels()] == [9.0, 11.0]
     assert [text.get_fontsize() for text in axes[2].get_legend().get_texts()] == [10.0, 12.0]

@@ -20,10 +20,10 @@ matplotlib.use("Agg")
 IPU_FILENAME_PATTERN = re.compile(r"sub-(?P<subject>\d{3})_run-(?P<run>\d+)_ipu\.csv$", flags=re.IGNORECASE)
 CATEGORY_ORDER: tuple[str, ...] = ("A", "B", "overlap", "silence")
 CATEGORY_LABELS: dict[str, str] = {
-    "A": "A alone",
-    "B": "B alone",
+    "A": "A",
+    "B": "B",
     "overlap": "Overlap",
-    "silence": "Silence",
+    "silence": "silence",
 }
 CATEGORY_PALETTE: dict[str, str] = {
     "A": "#4c78a8",
@@ -42,6 +42,11 @@ TICK_SIZE = 20
 LEGEND_SIZE = 18
 SMALL_LEGEND_SIZE = LEGEND_SIZE * 0.8
 SMALL_XTICK_SIZE = TICK_SIZE * 0.8
+TITLE_SCALE = 1.28
+XLABEL_SCALE = 1.5
+YLABEL_SCALE = 1.1
+THIRD_PANEL_WIDTH_RATIO = 1.5
+FIRST_PANEL_LEGEND_SCALE = 1.5
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,18 +309,31 @@ def _apply_publication_style() -> None:
     )
 
 
-def _plot_ipu_duration_histogram(axis: plt.Axes, ipu_table: pd.DataFrame) -> None:
-    """Render the IPU duration histogram."""
+def _plot_ipu_duration_histogram(
+    axis: plt.Axes,
+    ipu_table: pd.DataFrame,
+    *,
+    breakdown_table: pd.DataFrame,
+) -> None:
+    """Render the IPU and silence duration histograms."""
     bins = np.linspace(0.0, 10.0, 60)
+    speech_table = ipu_table.loc[:, ["duration_s"]].copy()
+    speech_table["series"] = "IPU"
+    silence_table = breakdown_table.loc[breakdown_table["category"] == "silence", ["duration_s"]].copy()
+    silence_table["series"] = "silence"
+    plot_table = pd.concat([speech_table, silence_table], ignore_index=True)
     sns.histplot(
-        data=ipu_table,
+        data=plot_table,
         x="duration_s",
+        hue="series",
         bins=bins,
         stat="count",
-        color="#6fa8a3",
+        multiple="layer",
+        common_norm=False,
+        palette={"IPU": "#6fa8a3", "silence": "#9d9da1"},
         edgecolor=None,
         linewidth=0.0,
-        alpha=0.98,
+        alpha=0.55,
         ax=axis,
     )
     axis.axvline(
@@ -325,10 +343,15 @@ def _plot_ipu_duration_histogram(axis: plt.Axes, ipu_table: pd.DataFrame) -> Non
         color="#1f1f1f",
         alpha=0.8,
     )
-    axis.set_title("Global IPU duration distribution")
+    axis.set_title("IPU and silence duration distribution")
     axis.set_xlabel("Duration (s)")
     axis.set_ylabel("Count")
     axis.set_xlim(0.0, 10.0)
+    legend = axis.get_legend()
+    if legend is not None:
+        legend.set_title(None)
+        for text in legend.get_texts():
+            text.set_fontsize(LEGEND_SIZE * FIRST_PANEL_LEGEND_SCALE)
     axis.grid(axis="y")
 
 
@@ -356,17 +379,6 @@ def _plot_cumulative_speaking_time(axis: plt.Axes, cumulative_table: pd.DataFram
     axis.set_title("Cumulative speaking time")
     axis.set_xlabel("Speaker A cumulative time (s)")
     axis.set_ylabel("Speaker B cumulative time (s)")
-    handles = [Line2D([0], [0], color=dyad_palette[dyad], linewidth=2.0, label=dyad) for dyad in dyads]
-    axis.legend(
-        handles=handles,
-        title="Dyad",
-        loc="upper left",
-        bbox_to_anchor=(1.02, 1.0),
-        borderaxespad=0.0,
-        frameon=False,
-        fontsize=SMALL_LEGEND_SIZE,
-        title_fontsize=SMALL_LEGEND_SIZE,
-    )
     axis.set_aspect("equal", adjustable="box")
     axis.grid(True)
 
@@ -403,11 +415,31 @@ def _plot_breakdown(axis: plt.Axes, breakdown_table: pd.DataFrame) -> None:
     axis.set_title("Turn-state breakdown")
     axis.set_xlabel("Dyad")
     axis.set_ylabel("Proportion of run time")
+    axis.set_ylim(0.0, 1.2)
     axis.set_xticks(x_positions)
     axis.set_xticklabels(proportions.index.tolist(), rotation=45, ha="right")
     axis.tick_params(axis="x", labelsize=SMALL_XTICK_SIZE)
-    axis.legend(title="Category", loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0.0, frameon=False)
     axis.grid(axis="y")
+    axis.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.0),
+        ncol=len(CATEGORY_ORDER),
+        frameon=False,
+        fontsize=LEGEND_SIZE * 1.4,
+        handlelength=1.8,
+        columnspacing=1.2,
+        handletextpad=0.5,
+        borderaxespad=0.2,
+    )
+
+
+def _tune_ipu_summary_layout(fig: plt.Figure, axes: np.ndarray) -> None:
+    """Apply final sizing and figure-level legend layout."""
+    flat_axes = list(np.ravel(axes))
+    for axis in flat_axes:
+        axis.title.set_fontsize(float(TITLE_SIZE) * TITLE_SCALE)
+        axis.xaxis.label.set_size(float(LABEL_SIZE) * XLABEL_SCALE)
+        axis.yaxis.label.set_size(float(LABEL_SIZE) * YLABEL_SCALE)
 
 
 def build_ipu_turn_taking_figure(*, cfg: ProjectConfig, output_path: Path) -> Path:
@@ -415,11 +447,19 @@ def build_ipu_turn_taking_figure(*, cfg: ProjectConfig, output_path: Path) -> Pa
     annotation_dir = _annotation_root(cfg)
     ipu_table, cumulative_table, breakdown_table = _load_turn_taking_inputs(annotation_dir)
     _apply_publication_style()
-    fig, axes = plt.subplots(1, 3, figsize=_figure_size(cfg), dpi=_figure_dpi(cfg), constrained_layout=True)
-    _plot_ipu_duration_histogram(axes[0], ipu_table)
+    fig, axes = plt.subplots(
+        1,
+        3,
+        figsize=_figure_size(cfg),
+        dpi=_figure_dpi(cfg),
+        constrained_layout=True,
+        gridspec_kw={"width_ratios": [1.0, 1.0, THIRD_PANEL_WIDTH_RATIO]},
+    )
+    _plot_ipu_duration_histogram(axes[0], ipu_table, breakdown_table=breakdown_table)
     _plot_cumulative_speaking_time(axes[1], cumulative_table)
     _plot_breakdown(axes[2], breakdown_table)
-    fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.06, wspace=0.08, hspace=0.02)
+    _tune_ipu_summary_layout(fig, axes)
+    fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.12, wspace=0.08, hspace=0.02)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, bbox_inches="tight")

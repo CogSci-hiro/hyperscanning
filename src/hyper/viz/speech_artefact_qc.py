@@ -54,11 +54,31 @@ RUN_STEM_PATTERN = re.compile(
 )
 EXPECTED_EEG_CHANNELS = 64.0
 FONT_SCALE = 2.0
-Y_AXIS_LABEL_SCALE = 0.7
+Y_AXIS_LABEL_SCALE = 1.053
 THIRD_PANEL_XTICK_SCALE = 0.5
 LEGEND_FONT_SCALE = 0.5
-FIRST_SECOND_GAP_REDUCTION = 0.055
-SECOND_THIRD_GAP_REDUCTION = 0.04
+FIRST_SECOND_GAP_REDUCTION = 0.095
+SECOND_THIRD_GAP_REDUCTION = 0.075
+THIRD_PANEL_WIDTH_RATIO = 1.3
+FIGURE_WIDTH_PADDING = 0.35
+
+
+def _write_placeholder_figure(
+    output_path: Path,
+    *,
+    cfg: ProjectConfig,
+    title: str,
+    message: str,
+) -> Path:
+    """Write a simple placeholder figure when report inputs are unavailable."""
+    figure, axis = plt.subplots(1, 1, figsize=_figure_size(cfg), dpi=_figure_dpi(cfg))
+    axis.axis("off")
+    axis.text(0.5, 0.62, title, ha="center", va="center", fontsize=22, fontweight="semibold", transform=axis.transAxes)
+    axis.text(0.5, 0.42, message, ha="center", va="center", fontsize=16, transform=axis.transAxes, wrap=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=_figure_dpi(cfg), bbox_inches="tight")
+    plt.close(figure)
+    return output_path
 
 
 def _count_bad_channels(channels_tsv_path: Path) -> int:
@@ -84,9 +104,12 @@ def _figure_size(cfg: ProjectConfig) -> tuple[float, float]:
     figsize_cfg = speech_cfg.get("figsize", {})
     if not isinstance(figsize_cfg, dict):
         figsize_cfg = {}
+    configured_width = float(figsize_cfg.get("width", 15.0))
+    configured_height = float(figsize_cfg.get("height", 4.5))
+    target_width = configured_height * (2.0 + THIRD_PANEL_WIDTH_RATIO) + FIGURE_WIDTH_PADDING
     return (
-        float(figsize_cfg.get("width", 15.0)),
-        float(figsize_cfg.get("height", 4.5)),
+        min(configured_width, target_width),
+        configured_height,
     )
 
 
@@ -436,8 +459,16 @@ def _plot_component_counts(axis: plt.Axes, summary: ComponentCountSummary) -> No
     axis.set_xlabel("Subject")
     axis.set_ylabel("Number of components")
     axis.set_title("ICA component counts")
-    axis.set_ylim(0.0, 68.0)
-    axis.legend(frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0.0)
+    axis.set_ylim(0.0, 75.0)
+    axis.legend(
+        frameon=False,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.98),
+        ncol=3,
+        borderaxespad=0.0,
+        columnspacing=1.0,
+        handletextpad=0.4,
+    )
     axis.grid(axis="y", alpha=0.25, linewidth=0.5)
 
 
@@ -473,6 +504,13 @@ def _remove_second_panel_y_axis(axis: plt.Axes) -> None:
     """Hide y-axis ticks and labels for the second PSD panel."""
     axis.set_ylabel("")
     axis.set_yticks([])
+
+
+def _enforce_square_psd_panels(axes: Sequence[plt.Axes]) -> None:
+    """Make the first two PSD panels close to square."""
+    for axis in axes[:2]:
+        if hasattr(axis, "set_box_aspect"):
+            axis.set_box_aspect(1.0)
 
 
 def _reduce_first_second_gap(axes: Sequence[plt.Axes], *, delta: float) -> None:
@@ -516,6 +554,15 @@ def build_speech_artefact_summary_figure(
     output_path: Path,
 ) -> Path:
     """Build the speech artefact summary figure and write it to disk."""
+    output_path = Path(output_path)
+    if len(filtered_noica_paths) == 0 or len(filtered_paths) == 0 or len(ica_paths) == 0:
+        return _write_placeholder_figure(
+            output_path,
+            cfg=cfg,
+            title="Speech artefact summary unavailable",
+            message="No filtered/ICA inputs were available for this report target.",
+        )
+
     method, fmin_hz, fmax_hz, n_fft = _psd_settings(cfg)
     with tempfile.TemporaryDirectory(prefix="speech-artefact-qc-") as temp_dir:
         scratch_root = Path(temp_dir)
@@ -549,11 +596,12 @@ def build_speech_artefact_summary_figure(
     component_summary = _add_bad_channel_counts(component_summary, cfg=cfg, run_paths=filtered_noica_paths)
     component_summary = _sort_component_summary(component_summary)
 
-    figure, axes = plt.subplots(1, 3, figsize=_figure_size(cfg))
+    figure, axes = plt.subplots(1, 3, figsize=_figure_size(cfg), gridspec_kw={"width_ratios": [1.0, 1.0, THIRD_PANEL_WIDTH_RATIO]})
     _plot_psd(axes[0], noica_summary, title="PSD: no ICA")
     _plot_psd(axes[1], filtered_summary, title="PSD: with ICA")
     _remove_second_panel_y_axis(axes[1])
     _plot_component_counts(axes[2], component_summary)
+    _enforce_square_psd_panels(axes)
     _scale_figure_fonts(figure, scale=FONT_SCALE)
     _tune_speech_artefact_fonts(axes)
     figure.tight_layout()

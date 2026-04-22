@@ -122,3 +122,38 @@ def test_build_trf_main_figure_renders_configured_feature_grid(
     assert all(call["compact_vertical"] is True for call in calls)
     np.testing.assert_allclose(calls[0]["joint_times"], np.array([0.05, 0.15, 0.25], dtype=float))
     np.testing.assert_allclose(calls[1]["joint_times"], np.array([0.1, 0.2, 0.3], dtype=float))
+
+
+def test_build_trf_main_figure_writes_placeholder_when_no_kernels(monkeypatch, tmp_path: Path) -> None:
+    """Missing TRF kernels should produce a placeholder figure instead of raising."""
+    cfg = ProjectConfig(
+        raw={
+            "paths": {
+                "raw_root": str(tmp_path / "raw"),
+                "out_dir": str(tmp_path / "derived"),
+                "reports_root": str(tmp_path / "reports"),
+                "results_root": str(tmp_path / "results"),
+            },
+            "viz": {
+                "trf_main_figure": {
+                    "task": "conversation",
+                    "dpi": 120,
+                    "figsize": {"width": 8.0, "height": 4.0},
+                    "layout": {"rows": 1, "cols": 1},
+                    "joint_times_seconds": [0.1, 0.2, 0.3],
+                    "features": [{"predictor": "feat_a", "label": "Feature A"}],
+                }
+            },
+        }
+    )
+    monkeypatch.setattr(
+        mod,
+        "_load_group_average_kernel_data",
+        lambda cfg, task: (_ for _ in ()).throw(ValueError("No TRF kernels were available to plot for task='conversation'.")),
+    )
+
+    output_path = tmp_path / "reports" / "figures" / "trf_main.png"
+    written = mod.build_trf_main_figure(cfg=cfg, output_path=output_path)
+
+    assert written == output_path
+    assert output_path.exists()
