@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 import yaml
 
-from hyper.config import load_raw_project_config
+from duet.config import load_raw_project_config
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +68,8 @@ def prepare_canary_run(*, tmp_path: Path, spec: CanarySpec = CanarySpec()) -> Ca
     shutil.copy2(source_ica, target_ica)
 
     cfg["paths"]["derived_root"] = str(derived_root)
+    if "out_dir" in cfg["paths"]:
+        cfg["paths"]["out_dir"] = str(derived_root)
     cfg["paths"]["precomputed_ica_root"] = str(target_ica.parent)
     cfg["debug"]["enabled"] = True
     cfg["debug"]["subjects"] = [spec.subject]
@@ -98,12 +100,20 @@ def prepare_canary_run(*, tmp_path: Path, spec: CanarySpec = CanarySpec()) -> Ca
 
 def run_canary(paths: CanaryPaths) -> None:
     """Execute Snakemake canary target using the generated runtime config."""
-    if shutil.which("snakemake") is None:
+    venv_python = paths.repo_root / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        cmd = [
+            str(venv_python),
+            "-m",
+            "snakemake",
+        ]
+    elif shutil.which("snakemake") is not None:
+        cmd = ["snakemake"]
+    else:
         pytest.skip("snakemake executable not found")
 
     snakefile = paths.repo_root / "workflow" / "Snakefile"
-    cmd = [
-        "snakemake",
+    cmd.extend([
         "-s",
         str(snakefile),
         "--configfile",
@@ -111,12 +121,21 @@ def run_canary(paths: CanaryPaths) -> None:
         "--cores",
         "1",
         str(paths.target_path),
-    ]
+    ])
 
     env: dict[str, Any] = dict(os.environ)
     venv_bin = paths.repo_root / ".venv" / "bin"
     if venv_bin.exists():
         env["PATH"] = f"{venv_bin}:{env.get('PATH', '')}"
+    home_dir = paths.run_root / ".home"
+    cache_dir = paths.run_root / ".cache"
+    home_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    env["HOME"] = str(home_dir)
+    env["XDG_CACHE_HOME"] = str(cache_dir)
+    env["MPLCONFIGDIR"] = str(paths.run_root / ".mplconfig")
+    env["MNE_HOME"] = str(paths.run_root / ".mne")
+    env["MNE_DONTWRITE_HOME"] = "true"
 
     subprocess.run(cmd, check=True, cwd=paths.repo_root, env=env)
 

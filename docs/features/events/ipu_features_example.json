@@ -102,7 +102,7 @@
   },
   "Method": {
     "Algorithm": "IPU segmentation from token intervals",
-    "AlgorithmReference": "src/hyper/annotations/palign_core.py",
+    "AlgorithmReference": "src/duet/annotations/palign_core.py",
     "Parameters": {
       "MinSilenceSeconds": 0.2,
       "MinIPUDurationSeconds": 0.01,

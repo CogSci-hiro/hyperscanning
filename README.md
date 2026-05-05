@@ -108,7 +108,7 @@ flowchart TD
 ```
 
 Diagram notes:
-- Guarantees enforced: `metadata.tsv` is produced by aligning IPU annotations within a fixed time window; each row corresponds to one anchor IPU with partner features and latency (see `workflow/rules/preprocessing.smk` and `src/hyper/preprocessing/metadata.py`).
+- Guarantees enforced: `metadata.tsv` is produced by aligning IPU annotations within a fixed time window; each row corresponds to one anchor IPU with partner features and latency (see `workflow/rules/preprocessing.smk` and `src/duet/preprocessing/metadata.py`).
 - Deterministic regeneration: fixed seeds, single-thread defaults in rules, and stable sort operations in comparators ensure reproducible outputs given identical inputs and config.
 - To regenerate the full DAG: run Snakemake against `workflow/Snakefile` with your config and data paths (see below).
 
@@ -141,7 +141,7 @@ snakemake -s workflow/Snakefile derived/canary/all.done --cores 1
 
 ## Testing
 
-- Unit tests: `pytest tests/hyper -q`
+- Unit tests: `pytest tests/duet -q`
 - Integration (canary regression): `pytest -m integration -q`
 
 ## Documentation

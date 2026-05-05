@@ -2,14 +2,14 @@
 
 This repository uses two complementary test layers.
 
-## `tests/hyper`
+## `tests/duet`
 
 Purpose:
-- fast, pure unit tests for Python modules under `src/hyper`
+- fast, pure unit tests for Python modules under `src/duet`
 - no Snakemake DAG execution required
 
 Typical usage:
-- `pytest tests/hyper -q`
+- `pytest tests/duet -q`
 
 ## `tests/integration`
 

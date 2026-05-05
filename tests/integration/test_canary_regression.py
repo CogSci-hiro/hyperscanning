@@ -7,7 +7,7 @@ regression checks while still traversing one datapoint through the rule chain.
 
 import pytest
 
-from hyper.testing.regression import RegressionTolerance, assert_paths_equal
+from duet.testing.regression import RegressionTolerance, assert_paths_equal
 from tests.integration.canary_utils import (
     CanarySpec,
     build_checksum_map,

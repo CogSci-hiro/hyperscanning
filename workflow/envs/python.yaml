@@ -1,4 +1,4 @@
-name: hyper-pipeline
+name: duet-pipeline
 
 channels:
   - conda-forge

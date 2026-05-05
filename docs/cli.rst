@@ -4,7 +4,7 @@ CLI
 Entry point
 -----------
 
-The command-line interface is implemented in ``src/hyper/cli/main.py`` and
+The command-line interface is implemented in ``src/duet/cli/main.py`` and
 exposes subcommands that correspond to preprocessing rules.
 
 Subcommands

@@ -2,7 +2,7 @@
 .ipynb_checkpoints
 notebooks/working
 .snakemake
-src/hyper.egg-info
+src/duet.egg-info
 *__pycache__
 project_info.py
 project_snapshot.md

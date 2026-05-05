@@ -1,4 +1,4 @@
-"""Shared pytest fixtures and lightweight test doubles for the hyper test suite.
+"""Shared pytest fixtures and lightweight test doubles for the duet test suite.
 
 These fixtures intentionally replace heavy MNE objects with tiny stand-ins so
 unit tests stay fast, deterministic, and easy to understand.
@@ -14,7 +14,7 @@ import copy
 import numpy as np
 import pytest
 
-# Ensure `import hyper` resolves to the in-repo source tree during tests.
+# Ensure `import duet` resolves to the in-repo source tree during tests.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
@@ -25,6 +25,7 @@ if str(SRC_ROOT) not in sys.path:
 MNE_HOME = PROJECT_ROOT / ".mne_test_home"
 MNE_HOME.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MNE_HOME", str(MNE_HOME))
+os.environ.setdefault("MNE_DONTWRITE_HOME", "true")
 os.environ.setdefault("NUMBA_DISABLE_JIT", "1")
 
 

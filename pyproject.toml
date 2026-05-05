@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hyper"
+name = "duet"
 
 version = "0.1.0"
 description = "EEG hyperscanning processing"
@@ -31,7 +31,13 @@ dependencies = [
 dev = []
 
 [project.scripts]
-hyper = "hyper.cli.main:main"
+duet = "duet.cli.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.ruff]
 line-length = 100

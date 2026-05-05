@@ -8,19 +8,19 @@ usage of the pipeline modules.
    :toctree: _generated
    :recursive:
 
-   hyper
-   hyper.config
-   hyper.preprocessing
-   hyper.preprocessing.downsampling
-   hyper.preprocessing.reref
-   hyper.preprocessing.ica
-   hyper.preprocessing.interpolation
-   hyper.preprocessing.filtering
-   hyper.preprocessing.metadata
-   hyper.preprocessing.epoching
-   hyper.annotations.palign_core
-   hyper.features.linguistic
-   hyper.features.linguistic.pos
-   hyper.features.pipelines.linguistic
-   hyper.cli.main
-   hyper.testing.regression
+   duet
+   duet.config
+   duet.preprocessing
+   duet.preprocessing.downsampling
+   duet.preprocessing.reref
+   duet.preprocessing.ica
+   duet.preprocessing.interpolation
+   duet.preprocessing.filtering
+   duet.preprocessing.metadata
+   duet.preprocessing.epoching
+   duet.annotations.palign_core
+   duet.features.linguistic
+   duet.features.linguistic.pos
+   duet.features.pipelines.linguistic
+   duet.cli.main
+   duet.testing.regression
