@@ -1250,6 +1250,7 @@ def run_trf_qc_score_tables(
 
     eeg_rows: list[dict[str, Any]] = []
     feature_rows: list[dict[str, Any]] = []
+    subjects_with_full_feature_inputs = 0
 
     for subject_id in subject_ids:
         eeg_run_inputs, _ = load_trf_run_inputs(
@@ -1302,6 +1303,7 @@ def run_trf_qc_score_tables(
         )
         if len(full_run_inputs) == 0:
             continue
+        subjects_with_full_feature_inputs += 1
         full_summary = fit_subject_trf_score(
             run_inputs=full_run_inputs,
             config=trf_cfg,
@@ -1347,6 +1349,12 @@ def run_trf_qc_score_tables(
         feature_rows,
         columns=("subject", "target", "full_score", "reduced_score", "delta", "score_name"),
     )
+    if len(trf_cfg.ablation_targets) > 0 and feature_table.empty:
+        raise ValueError(
+            "TRF feature QC produced no rows. The configured full or reduced predictor sets are missing upstream inputs "
+            f"for task={task!r}. subjects_with_full_feature_inputs={subjects_with_full_feature_inputs}, "
+            f"predictors={list(trf_cfg.predictors)!r}, ablation_targets={list(trf_cfg.ablation_targets)!r}."
+        )
     _write_table(Path(eeg_output_path), eeg_table)
     _write_table(Path(feature_output_path), feature_table)
     return {

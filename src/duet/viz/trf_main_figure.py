@@ -14,6 +14,7 @@ from duet.config import ProjectConfig
 from duet.paths import ProjectPaths
 from duet.trf.qc import _discover_subject_ids, _load_subject_kernel_summary
 from duet.viz import plot_joint_map, sanitize_token
+from duet.viz.style import REPORT_FONT_SCALE, apply_report_style, scale_figure_text
 
 matplotlib.use("Agg")
 
@@ -223,10 +224,12 @@ def _write_placeholder_figure(
     message: str,
 ) -> Path:
     """Write a simple placeholder figure when TRF kernels are unavailable."""
+    apply_report_style()
     figure, axis = plt.subplots(1, 1, figsize=_figure_size(cfg), dpi=_figure_dpi(cfg))
     axis.axis("off")
-    axis.text(0.5, 0.62, title, ha="center", va="center", fontsize=22, fontweight="semibold", transform=axis.transAxes)
-    axis.text(0.5, 0.42, message, ha="center", va="center", fontsize=16, transform=axis.transAxes, wrap=True)
+    axis.text(0.5, 0.62, title, ha="center", va="center", transform=axis.transAxes)
+    axis.text(0.5, 0.42, message, ha="center", va="center", transform=axis.transAxes, wrap=True)
+    scale_figure_text(figure, scale=REPORT_FONT_SCALE)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=_figure_dpi(cfg), bbox_inches="tight")
     plt.close(figure)
@@ -307,12 +310,14 @@ def build_trf_main_figure(
             )
             image_paths.append(Path(written_paths[0]))
 
+        apply_report_style()
         figure, axes = plt.subplots(rows, cols, figsize=_figure_size(cfg), squeeze=False)
         flat_axes = list(axes.ravel())
         for axis, image_path, feature in zip(flat_axes, image_paths, features, strict=True):
             axis.imshow(plt.imread(image_path))
             axis.set_axis_off()
-            axis.set_title(feature.label, y=1.14, fontsize=33, pad=0)
+            axis.set_title(feature.label, y=1.14, pad=0)
+        scale_figure_text(figure, scale=REPORT_FONT_SCALE)
         for axis in flat_axes[len(image_paths):]:
             axis.set_axis_off()
         figure.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0, wspace=0.0, hspace=-0.16)

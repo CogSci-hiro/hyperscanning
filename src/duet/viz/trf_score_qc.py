@@ -13,11 +13,18 @@ from scipy import stats
 from matplotlib import pyplot as plt
 
 from duet.config import ProjectConfig
+from duet.viz.style import (
+    REPORT_FONT_SCALE,
+    REPORT_X_TICK_LABEL_SCALE,
+    apply_report_style,
+    scale_figure_text,
+    scale_tick_labels,
+)
 
 matplotlib.use("Agg")
 
-FONT_SCALE = 2.0
-X_TICK_LABEL_SCALE = 0.7
+FONT_SCALE = REPORT_FONT_SCALE
+X_TICK_LABEL_SCALE = REPORT_X_TICK_LABEL_SCALE
 JITTER_ALPHA = 1.0
 JITTER_SIZE = 3.1 * 1.5
 JITTER_LINEWIDTH = 0.45 * 1.5
@@ -81,25 +88,7 @@ def _load_inputs(*, eeg_table_path: Path, feature_table_path: Path) -> TrfScoreQ
 
 def _apply_publication_style() -> None:
     """Apply a clean Seaborn theme for publication-ready violins."""
-    sns.set_theme(
-        style="whitegrid",
-        context="paper",
-        font_scale=1.15,
-        rc={
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-            "axes.edgecolor": "#303030",
-            "axes.linewidth": 0.8,
-            "axes.facecolor": "white",
-            "figure.facecolor": "white",
-            "grid.color": "#d8d8d8",
-            "grid.linewidth": 0.7,
-            "xtick.color": "#202020",
-            "ytick.color": "#202020",
-            "axes.labelcolor": "#202020",
-            "axes.titleweight": "semibold",
-        },
-    )
+    apply_report_style()
 
 
 def _pvalue_to_stars(pvalue: float) -> str:
@@ -210,6 +199,18 @@ def _plot_eeg_quality(axis: plt.Axes, eeg_table: pd.DataFrame) -> None:
     sns.despine(ax=axis, offset=6)
 
 
+def _render_empty_feature_panel(axis: plt.Axes, *, reason: str) -> None:
+    """Render a placeholder panel when feature QC rows are unavailable."""
+    axis.set_title("Feature quality check")
+    axis.set_xlabel("")
+    axis.set_ylabel(r"Delta R ($\Delta R$)")
+    axis.set_xticks([], [])
+    axis.grid(False)
+    axis.set_axisbelow(True)
+    axis.text(0.5, 0.5, reason, ha="center", va="center", transform=axis.transAxes)
+    sns.despine(ax=axis, offset=6)
+
+
 def _plot_feature_quality(axis: plt.Axes, feature_table: pd.DataFrame, *, plotted_feature_labels: dict[str, str]) -> None:
     """Render the feature QC violin subplot."""
     plot_table = feature_table.copy()
@@ -218,7 +219,11 @@ def _plot_feature_quality(axis: plt.Axes, feature_table: pd.DataFrame, *, plotte
         plot_table = plot_table.loc[plot_table["target"].isin(plotted_feature_labels)].copy()
     feature_names = [str(name) for name in plot_table["target"].tolist()]
     if len(feature_names) == 0:
-        raise ValueError("Feature QC table is empty; cannot render violin plot.")
+        reason = "No feature QC rows available."
+        if plotted_feature_labels:
+            reason = "No feature QC rows matched the configured plotted features."
+        _render_empty_feature_panel(axis, reason=reason)
+        return
     categories = list(dict.fromkeys(feature_names))
     display_labels = [plotted_feature_labels.get(category, category) for category in categories]
     palette_values = sns.color_palette("Set2", n_colors=len(categories))
@@ -284,8 +289,6 @@ def build_trf_score_qc_figure(
     inputs = _load_inputs(eeg_table_path=eeg_table_path, feature_table_path=feature_table_path)
     if inputs.eeg_table.empty:
         raise ValueError("EEG QC table is empty; cannot render violin plot.")
-    if inputs.feature_table.empty:
-        raise ValueError("Feature QC table is empty; cannot render violin plot.")
 
     _apply_publication_style()
     plotted_feature_labels = _plotted_feature_labels(cfg)
@@ -293,18 +296,9 @@ def build_trf_score_qc_figure(
     figure, axes = plt.subplots(1, 2, figsize=_figure_size(cfg), gridspec_kw={"width_ratios": [1, 3]})
     _plot_eeg_quality(axes[0], inputs.eeg_table)
     _plot_feature_quality(axes[1], inputs.feature_table, plotted_feature_labels=plotted_feature_labels)
-    if hasattr(figure, "findobj"):
-        for text in figure.findobj(matplotlib.text.Text):
-            fontsize = text.get_fontsize()
-            if fontsize is not None:
-                text.set_fontsize(float(fontsize) * FONT_SCALE)
+    scale_figure_text(figure, scale=FONT_SCALE)
     for axis in axes:
-        if not hasattr(axis, "get_xticklabels"):
-            continue
-        for tick in axis.get_xticklabels():
-            fontsize = tick.get_fontsize()
-            if fontsize is not None:
-                tick.set_fontsize(float(fontsize) * x_tick_label_scale)
+        scale_tick_labels(axis, x_scale=x_tick_label_scale)
     figure.tight_layout()
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

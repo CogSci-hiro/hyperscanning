@@ -15,11 +15,12 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from duet.config import ProjectConfig
-from duet.paths import ProjectPaths
+from duet.paths import ProjectPaths, resolve_configured_root
 from duet.preprocessing.downsampling import downsample_edf_to_fif
 from duet.preprocessing.ica import apply_ica_fif_to_fif
 from duet.preprocessing.interpolation import interpolate_bads_fif_to_fif
 from duet.preprocessing.reref import rereference_fif_to_fif
+from duet.viz.style import REPORT_FONT_SCALE, REPORT_X_TICK_LABEL_SCALE, apply_report_style, scale_figure_text, scale_tick_labels
 
 os.environ.setdefault("MNE_DONTWRITE_HOME", "true")
 
@@ -53,9 +54,9 @@ RUN_STEM_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 EXPECTED_EEG_CHANNELS = 64.0
-FONT_SCALE = 2.0
+FONT_SCALE = REPORT_FONT_SCALE
 Y_AXIS_LABEL_SCALE = 1.053
-THIRD_PANEL_XTICK_SCALE = 0.5
+THIRD_PANEL_XTICK_SCALE = REPORT_X_TICK_LABEL_SCALE
 LEGEND_FONT_SCALE = 0.5
 FIRST_SECOND_GAP_REDUCTION = 0.095
 SECOND_THIRD_GAP_REDUCTION = 0.075
@@ -71,10 +72,12 @@ def _write_placeholder_figure(
     message: str,
 ) -> Path:
     """Write a simple placeholder figure when report inputs are unavailable."""
+    apply_report_style()
     figure, axis = plt.subplots(1, 1, figsize=_figure_size(cfg), dpi=_figure_dpi(cfg))
     axis.axis("off")
-    axis.text(0.5, 0.62, title, ha="center", va="center", fontsize=22, fontweight="semibold", transform=axis.transAxes)
-    axis.text(0.5, 0.42, message, ha="center", va="center", fontsize=16, transform=axis.transAxes, wrap=True)
+    axis.text(0.5, 0.62, title, ha="center", va="center", transform=axis.transAxes)
+    axis.text(0.5, 0.42, message, ha="center", va="center", transform=axis.transAxes, wrap=True)
+    scale_figure_text(figure, scale=FONT_SCALE)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=_figure_dpi(cfg), bbox_inches="tight")
     plt.close(figure)
@@ -267,10 +270,17 @@ def _resolve_ica_path(cfg: ProjectConfig, run_path: Path) -> Path:
     paths_cfg = cfg.raw.get("paths", {})
     if not isinstance(paths_cfg, dict) or "precomputed_ica_root" not in paths_cfg:
         raise ValueError("Config paths must define 'precomputed_ica_root' for speech artefact reconstruction.")
+    project_paths = ProjectPaths.from_config(cfg)
+    ica_root = resolve_configured_root(
+        Path(str(paths_cfg["precomputed_ica_root"])),
+        root_label="precomputed_ica_root",
+        out_dir=project_paths.out_dir,
+        raw_root=project_paths.raw_root,
+    )
     preprocessing_cfg = cfg.raw.get("preprocessing", {})
     ica_cfg = preprocessing_cfg.get("ica", {}) if isinstance(preprocessing_cfg, dict) else {}
     pattern = str((ica_cfg if isinstance(ica_cfg, dict) else {}).get("path_pattern", "{subject_id}_task-{task}-ica.fif"))
-    return Path(str(paths_cfg["precomputed_ica_root"])) / pattern.format(
+    return ica_root / pattern.format(
         subject_id=subject_id,
         subject=subject_id,
         task=task,
@@ -474,12 +484,7 @@ def _plot_component_counts(axis: plt.Axes, summary: ComponentCountSummary) -> No
 
 def _scale_figure_fonts(figure: plt.Figure, *, scale: float) -> None:
     """Scale all text artists in a rendered figure by a constant factor."""
-    if not hasattr(figure, "findobj"):
-        return
-    for text in figure.findobj(matplotlib.text.Text):
-        fontsize = text.get_fontsize()
-        if fontsize is not None:
-            text.set_fontsize(float(fontsize) * scale)
+    scale_figure_text(figure, scale=scale)
 
 
 def _tune_speech_artefact_fonts(axes: Sequence[plt.Axes]) -> None:
@@ -490,9 +495,7 @@ def _tune_speech_artefact_fonts(axes: Sequence[plt.Axes]) -> None:
         axis.yaxis.label.set_fontsize(axis.yaxis.label.get_fontsize() * Y_AXIS_LABEL_SCALE)
 
     third_axis = axes[2]
-    if hasattr(third_axis, "get_xticklabels"):
-        for tick in third_axis.get_xticklabels():
-            tick.set_fontsize(tick.get_fontsize() * THIRD_PANEL_XTICK_SCALE)
+    scale_tick_labels(third_axis, x_scale=THIRD_PANEL_XTICK_SCALE, y_scale=1.0)
 
     legend = third_axis.get_legend() if hasattr(third_axis, "get_legend") else None
     if legend is not None:
@@ -596,6 +599,7 @@ def build_speech_artefact_summary_figure(
     component_summary = _add_bad_channel_counts(component_summary, cfg=cfg, run_paths=filtered_noica_paths)
     component_summary = _sort_component_summary(component_summary)
 
+    apply_report_style()
     figure, axes = plt.subplots(1, 3, figsize=_figure_size(cfg), gridspec_kw={"width_ratios": [1.0, 1.0, THIRD_PANEL_WIDTH_RATIO]})
     _plot_psd(axes[0], noica_summary, title="PSD: no ICA")
     _plot_psd(axes[1], filtered_summary, title="PSD: with ICA")

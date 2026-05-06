@@ -35,10 +35,28 @@ def add_subparser(subparsers: Any) -> None:
     parser.add_argument("--feature-name", type=str, default=None, help="Optional feature name stored in metadata.")
     parser.add_argument("--source-subject", type=str, default=None, help="Optional source subject stored in metadata.")
     parser.add_argument("--source-role", type=str, default=None, help="Optional source role stored in metadata.")
+    parser.add_argument("--ipu", type=Path, default=None, help="Optional IPU CSV used to zero out silence-labelled spans.")
+    parser.add_argument(
+        "--silence-label",
+        action="append",
+        default=None,
+        help="IPU annotation label to treat as silence when masking audio. Repeatable; defaults to '#'.",
+    )
     parser.add_argument("--frame-length", type=float, default=None, help="Envelope frame length in seconds.")
     parser.add_argument("--frame-step", type=float, default=None, help="Envelope frame step in seconds.")
+    parser.add_argument(
+        "--envtype",
+        choices=["loudness", "broadband"],
+        default=None,
+        help="Oganian envelope variant to extract.",
+    )
+    parser.add_argument(
+        "--broadband-lowpass-hz",
+        type=float,
+        default=None,
+        help="Low-pass cutoff for the broadband Oganian branch.",
+    )
     parser.add_argument("--smoothing", type=int, default=None, help="Envelope smoothing window in frames.")
-    parser.add_argument("--peak-threshold", type=float, default=None, help="VoxAtlas Oganian peak threshold.")
 
 
 def run(args: argparse.Namespace, cfg) -> None:
@@ -66,6 +84,8 @@ def run(args: argparse.Namespace, cfg) -> None:
         feature_name=args.feature_name,
         source_subject=args.source_subject,
         source_role=args.source_role,
+        ipu_path=args.ipu,
+        silence_labels=tuple(args.silence_label or ("#",)),
         config=EnvelopeExtractionConfig(
             frame_length_seconds=float(
                 args.frame_length if args.frame_length is not None else feature_cfg.get(
@@ -79,16 +99,22 @@ def run(args: argparse.Namespace, cfg) -> None:
                     defaults.frame_step_seconds,
                 )
             ),
+            envtype=str(
+                args.envtype if args.envtype is not None else feature_cfg.get(
+                    "envtype",
+                    defaults.envtype,
+                )
+            ),
+            broadband_lowpass_hz=float(
+                args.broadband_lowpass_hz if args.broadband_lowpass_hz is not None else feature_cfg.get(
+                    "broadband_lowpass_hz",
+                    defaults.broadband_lowpass_hz,
+                )
+            ),
             smoothing_frames=int(
                 args.smoothing if args.smoothing is not None else feature_cfg.get(
                     "smoothing_frames",
                     defaults.smoothing_frames,
-                )
-            ),
-            peak_threshold=float(
-                args.peak_threshold if args.peak_threshold is not None else feature_cfg.get(
-                    "peak_threshold",
-                    defaults.peak_threshold,
                 )
             ),
         ),

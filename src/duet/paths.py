@@ -9,6 +9,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
+from warnings import warn
 
 from .config import ProjectConfig
 
@@ -86,13 +87,60 @@ class ProjectPaths:
         if out_dir_value is None:
             raise ValueError("Config paths must define 'out_dir'")
 
+        raw_root = Path(str(raw_root_value))
+        out_dir = Path(str(out_dir_value))
         results_root_value = paths_cfg.get("results_root", out_dir_value)
         lm_feature_root_value = paths_cfg.get("lm_feature_root", out_dir_value)
 
         return ProjectPaths(
-            raw_root=Path(str(raw_root_value)),
-            out_dir=Path(str(out_dir_value)),
+            raw_root=raw_root,
+            out_dir=out_dir,
             results_root=Path(str(results_root_value)),
             reports_root=Path(str(paths_cfg["reports_root"])),
-            lm_feature_root=Path(str(lm_feature_root_value)),
+            lm_feature_root=resolve_configured_root(
+                Path(str(lm_feature_root_value)),
+                root_label="lm_feature_root",
+                out_dir=out_dir,
+                raw_root=raw_root,
+            ),
         )
+
+
+def _unique_paths(paths: list[Path]) -> tuple[Path, ...]:
+    """Return paths with duplicates removed while preserving order."""
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        if path in seen:
+            continue
+        unique.append(path)
+        seen.add(path)
+    return tuple(unique)
+
+
+def resolve_configured_root(
+    configured_root: Path,
+    *,
+    root_label: str,
+    out_dir: Path | None = None,
+    raw_root: Path | None = None,
+) -> Path:
+    """Resolve a configured root, falling back to nearby known locations."""
+    candidates: list[Path] = [configured_root]
+    basename = configured_root.name
+
+    if out_dir is not None:
+        candidates.append(out_dir.parent / "duet-extra-data" / basename)
+    if raw_root is not None:
+        candidates.append(raw_root / "derivatives" / basename)
+
+    for candidate in _unique_paths(candidates):
+        if candidate.exists():
+            if candidate != configured_root:
+                warn(
+                    f"Configured {root_label} {configured_root} does not exist; using existing fallback {candidate}.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            return candidate
+    return configured_root

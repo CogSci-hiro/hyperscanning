@@ -21,6 +21,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from duet.features.linguistic.pos import PREFERRED_TEXT_COLUMNS
+from duet.viz.style import REPORT_X_TICK_LABEL_SCALE, apply_report_style, scale_figure_text, scale_tick_labels
 
 matplotlib.use("Agg")
 
@@ -348,6 +349,9 @@ def _apply_title(ax: plt.Axes, *, title_prefix: str | None, title: str) -> None:
 
 def _save_figure(figure: plt.Figure, output_path: Path) -> None:
     """Save and close one figure deterministically."""
+    scale_figure_text(figure)
+    for axis in figure.axes:
+        scale_tick_labels(axis, x_scale=REPORT_X_TICK_LABEL_SCALE, y_scale=1.0)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.tight_layout()
     figure.savefig(output_path, dpi=DEFAULT_DPI, bbox_inches="tight")
@@ -361,6 +365,7 @@ def plot_global_pos_distribution(
     title_prefix: str | None = None,
 ) -> None:
     """Plot global POS proportions as a bar chart."""
+    apply_report_style()
     figure, ax = plt.subplots(figsize=(DEFAULT_FIGURE_WIDTH, DEFAULT_FIGURE_HEIGHT))
     ax.bar(proportions[POS_TAG_COLUMN], proportions["token_proportion"])
     ax.set_xlabel("POS tag")
@@ -380,6 +385,7 @@ def plot_pos_heatmap_by_run(
     if heatmap_table.empty:
         raise ValueError("Cannot render POS heatmap because the per-run table is empty.")
 
+    apply_report_style()
     figure_height = float(
         min(
             HEATMAP_MAX_HEIGHT,
@@ -419,6 +425,7 @@ def plot_problematic_token_summary(
         }
     )
 
+    apply_report_style()
     figure, ax = plt.subplots(figsize=(DEFAULT_FIGURE_WIDTH, DEFAULT_FIGURE_HEIGHT))
     ax.bar(plot_table["metric_label"], plot_table["metric_rate"])
     ax.set_xlabel("Metric")

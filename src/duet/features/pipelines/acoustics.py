@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,7 @@ from duet.features.acoustic.pitch import F0FeatureResult, PitchExtractionConfig,
 
 
 JSON_INDENT_SPACES: int = 2
+DEFAULT_IPU_SILENCE_LABELS: tuple[str, ...] = ("#",)
 ALIGNMENT_EVENT_COLUMNS: tuple[str, ...] = (
     "onset_seconds",
     "duration_seconds",
@@ -55,6 +57,79 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
     )
 
 
+def _resolve_ipu_time_bounds(table: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Resolve interval start/end times from a supported IPU table schema."""
+    if {"start", "end"}.issubset(table.columns):
+        start = pd.to_numeric(table["start"], errors="coerce")
+        end = pd.to_numeric(table["end"], errors="coerce")
+        return start, end
+    if {"onset", "duration"}.issubset(table.columns):
+        start = pd.to_numeric(table["onset"], errors="coerce")
+        duration = pd.to_numeric(table["duration"], errors="coerce")
+        return start, start + duration
+    if {"onset_seconds", "duration_seconds"}.issubset(table.columns):
+        start = pd.to_numeric(table["onset_seconds"], errors="coerce")
+        duration = pd.to_numeric(table["duration_seconds"], errors="coerce")
+        return start, start + duration
+    raise ValueError("IPU table must contain either start/end, onset/duration, or onset_seconds/duration_seconds columns.")
+
+
+def _resolve_ipu_label_series(table: pd.DataFrame) -> pd.Series:
+    """Resolve the label column from a supported IPU table schema."""
+    for column_name in ("annotation", "label"):
+        if column_name in table.columns:
+            return table[column_name].astype(str)
+    raise ValueError("IPU table must contain an annotation or label column.")
+
+
+def zero_waveform_for_ipu_silences(
+    waveform: np.ndarray,
+    *,
+    audio_sampling_rate_hz: int,
+    ipu_path: Path,
+    silence_labels: Sequence[str] = DEFAULT_IPU_SILENCE_LABELS,
+) -> tuple[np.ndarray, dict[str, object]]:
+    """Zero out waveform samples covered by silence-labeled IPU intervals."""
+    silence_label_set = {str(label).strip() for label in silence_labels}
+    if len(silence_label_set) == 0:
+        return np.array(waveform, dtype=np.float32, copy=True), {
+            "ipu_path": str(ipu_path),
+            "silence_labels": [],
+            "silence_interval_count": 0,
+            "silence_sample_count": 0,
+            "silence_duration_seconds": 0.0,
+        }
+
+    table = pd.read_csv(ipu_path)
+    start_seconds, end_seconds = _resolve_ipu_time_bounds(table)
+    labels = _resolve_ipu_label_series(table).str.strip()
+    silence_rows = labels.isin(silence_label_set)
+
+    masked_waveform = np.array(waveform, dtype=np.float32, copy=True)
+    masked_sample_count = 0
+    silence_interval_count = 0
+    sample_rate = float(audio_sampling_rate_hz)
+
+    for start_value, end_value in zip(start_seconds.loc[silence_rows], end_seconds.loc[silence_rows], strict=False):
+        if not np.isfinite(start_value) or not np.isfinite(end_value):
+            continue
+        start_sample = max(0, int(np.floor(float(start_value) * sample_rate)))
+        stop_sample = min(masked_waveform.shape[0], int(np.ceil(float(end_value) * sample_rate)))
+        if stop_sample <= start_sample:
+            continue
+        masked_waveform[start_sample:stop_sample] = 0.0
+        masked_sample_count += stop_sample - start_sample
+        silence_interval_count += 1
+
+    return masked_waveform, {
+        "ipu_path": str(ipu_path),
+        "silence_labels": sorted(silence_label_set),
+        "silence_interval_count": int(silence_interval_count),
+        "silence_sample_count": int(masked_sample_count),
+        "silence_duration_seconds": float(masked_sample_count / sample_rate),
+    }
+
+
 def _write_continuous_derivative(
     result: EnvelopeFeatureResult | F0FeatureResult,
     output_values_path: Path,
@@ -63,6 +138,7 @@ def _write_continuous_derivative(
     feature_name: str | None = None,
     source_subject: str | None = None,
     source_role: str | None = None,
+    extra_metadata: dict[str, object] | None = None,
 ) -> None:
     output_values_path.parent.mkdir(parents=True, exist_ok=True)
     np.save(output_values_path, result.eeg_values)
@@ -73,6 +149,8 @@ def _write_continuous_derivative(
         metadata["source_subject"] = source_subject
     if source_role is not None:
         metadata["source_role"] = source_role
+    if extra_metadata:
+        metadata.update(extra_metadata)
     _write_json(
         output_sidecar_path,
         {
@@ -246,9 +324,19 @@ def run_envelope_pipeline(
     feature_name: str | None = None,
     source_subject: str | None = None,
     source_role: str | None = None,
+    ipu_path: Path | None = None,
+    silence_labels: Sequence[str] = DEFAULT_IPU_SILENCE_LABELS,
 ) -> EnvelopeFeatureResult:
     """Extract the EEG-aligned acoustic envelope derivative and write it."""
     waveform, sampling_rate_hz = load_audio_waveform(audio_path)
+    mask_metadata: dict[str, object] | None = None
+    if ipu_path is not None:
+        waveform, mask_metadata = zero_waveform_for_ipu_silences(
+            waveform,
+            audio_sampling_rate_hz=sampling_rate_hz,
+            ipu_path=ipu_path,
+            silence_labels=silence_labels,
+        )
     result = extract_envelope_feature(
         waveform=waveform,
         audio_sampling_rate_hz=sampling_rate_hz,
@@ -263,6 +351,11 @@ def run_envelope_pipeline(
         feature_name=feature_name,
         source_subject=source_subject,
         source_role=source_role,
+        extra_metadata=(
+            {"silence_masking": {"applied": True, **mask_metadata}}
+            if mask_metadata is not None
+            else None
+        ),
     )
     return result
 

@@ -8,12 +8,12 @@ import re
 
 import matplotlib
 from matplotlib import pyplot as plt
-from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
 from duet.config import ProjectConfig
+from duet.viz.style import REPORT_FONT_SCALE, REPORT_X_TICK_LABEL_SCALE, apply_report_style, scale_figure_text, scale_tick_labels
 
 matplotlib.use("Agg")
 
@@ -35,16 +35,8 @@ SPEAKER_PALETTE: dict[str, str] = {
     "A": "#4c78a8",
     "B": "#f58518",
 }
-FONT_SCALE = 2.0
-TITLE_SIZE = 28
-LABEL_SIZE = 24
-TICK_SIZE = 20
+FONT_SCALE = REPORT_FONT_SCALE
 LEGEND_SIZE = 18
-SMALL_LEGEND_SIZE = LEGEND_SIZE * 0.8
-SMALL_XTICK_SIZE = TICK_SIZE * 0.8
-TITLE_SCALE = 1.28
-XLABEL_SCALE = 1.5
-YLABEL_SCALE = 1.1
 THIRD_PANEL_WIDTH_RATIO = 1.5
 FIRST_PANEL_LEGEND_SCALE = 1.5
 
@@ -285,27 +277,16 @@ def _load_turn_taking_inputs(annotation_dir: Path) -> tuple[pd.DataFrame, pd.Dat
 
 def _apply_publication_style() -> None:
     """Apply a clean report style."""
-    sns.set_theme(
-        style="whitegrid",
-        context="paper",
-        font_scale=FONT_SCALE,
+    apply_report_style(
         rc={
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-            "axes.facecolor": "white",
-            "figure.facecolor": "white",
             "axes.edgecolor": "#2b2b2b",
             "axes.linewidth": 1.1,
             "grid.color": "#d7d7d7",
             "grid.linewidth": 0.85,
             "grid.alpha": 0.55,
-            "axes.titlesize": TITLE_SIZE,
-            "axes.labelsize": LABEL_SIZE,
-            "xtick.labelsize": TICK_SIZE,
-            "ytick.labelsize": TICK_SIZE,
             "legend.fontsize": LEGEND_SIZE,
             "legend.title_fontsize": LEGEND_SIZE,
-        },
+        }
     )
 
 
@@ -418,7 +399,6 @@ def _plot_breakdown(axis: plt.Axes, breakdown_table: pd.DataFrame) -> None:
     axis.set_ylim(0.0, 1.2)
     axis.set_xticks(x_positions)
     axis.set_xticklabels(proportions.index.tolist(), rotation=45, ha="right")
-    axis.tick_params(axis="x", labelsize=SMALL_XTICK_SIZE)
     axis.grid(axis="y")
     axis.legend(
         loc="upper center",
@@ -435,11 +415,9 @@ def _plot_breakdown(axis: plt.Axes, breakdown_table: pd.DataFrame) -> None:
 
 def _tune_ipu_summary_layout(fig: plt.Figure, axes: np.ndarray) -> None:
     """Apply final sizing and figure-level legend layout."""
-    flat_axes = list(np.ravel(axes))
-    for axis in flat_axes:
-        axis.title.set_fontsize(float(TITLE_SIZE) * TITLE_SCALE)
-        axis.xaxis.label.set_size(float(LABEL_SIZE) * XLABEL_SCALE)
-        axis.yaxis.label.set_size(float(LABEL_SIZE) * YLABEL_SCALE)
+    scale_figure_text(fig, scale=FONT_SCALE)
+    for axis in list(np.ravel(axes)):
+        scale_tick_labels(axis, x_scale=REPORT_X_TICK_LABEL_SCALE, y_scale=1.0)
 
 
 def build_ipu_turn_taking_figure(*, cfg: ProjectConfig, output_path: Path) -> Path:

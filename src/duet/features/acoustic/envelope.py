@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
 
 import numpy as np
 from voxatlas.audio.audio import Audio
@@ -20,14 +21,18 @@ from .common import (
 )
 
 
+EnvelopeType = Literal["loudness", "broadband"]
+
+
 @dataclass(frozen=True, slots=True)
 class EnvelopeExtractionConfig:
     """Configuration for VoxAtlas Oganian-style envelope extraction."""
 
     frame_length_seconds: float = 0.025
     frame_step_seconds: float = 0.010
-    smoothing_frames: int = 7
-    peak_threshold: float = 0.1
+    envtype: EnvelopeType = "broadband"
+    broadband_lowpass_hz: float = 10.0
+    smoothing_frames: int = 1
     alignment_target: str = DEFAULT_ALIGNMENT_TARGET
     notes: list[str] = field(default_factory=list)
 
@@ -67,8 +72,9 @@ def extract_envelope_feature(
     params = {
         "frame_length": resolved_config.frame_length_seconds,
         "frame_step": resolved_config.frame_step_seconds,
+        "envtype": resolved_config.envtype,
+        "broadband_lowpass_hz": resolved_config.broadband_lowpass_hz,
         "smoothing": resolved_config.smoothing_frames,
-        "peak_threshold": resolved_config.peak_threshold,
     }
 
     feature_input = FeatureInput(
@@ -88,8 +94,9 @@ def extract_envelope_feature(
         extraction_parameters={
             "frame_length_seconds": resolved_config.frame_length_seconds,
             "frame_step_seconds": resolved_config.frame_step_seconds,
+            "envtype": resolved_config.envtype,
+            "broadband_lowpass_hz": resolved_config.broadband_lowpass_hz,
             "smoothing_frames": resolved_config.smoothing_frames,
-            "peak_threshold": resolved_config.peak_threshold,
         },
         voxatlas_version=get_voxatlas_version(),
         voxatlas_function="voxatlas.features.acoustic.envelope.oganian.OganianEnvelope",

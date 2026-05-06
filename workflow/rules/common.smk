@@ -221,9 +221,31 @@ def derived_path(*parts: str) -> str:
     return out_path(*parts)
 
 
+def _resolve_configured_root(root_value, *, root_name: str) -> Path:
+    """Resolve a configured root, falling back to nearby known locations."""
+    configured = Path(str(root_value))
+    candidates = [configured]
+    out_root = Path(str(PATHS.get("out_dir", PATHS.get("derived_root", configured.parent))))
+    bids_root = Path(str(PATHS.get("bids_root", configured.parent)))
+    candidates.append(out_root.parent / "duet-extra-data" / configured.name)
+    candidates.append(bids_root / "derivatives" / configured.name)
+
+    seen = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate.exists():
+            return candidate
+    return configured
+
+
 def lm_feature_path(*parts: str) -> str:
     """Construct a path under the converted LM feature root."""
-    root = PATHS.get("lm_feature_root", PATHS.get("out_dir", PATHS.get("derived_root")))
+    root = _resolve_configured_root(
+        PATHS.get("lm_feature_root", PATHS.get("out_dir", PATHS.get("derived_root"))),
+        root_name="lm_feature_root",
+    )
     return str(Path(root) / Path(*parts))
 
 
@@ -234,7 +256,7 @@ def precomputed_ica_path(filename: str) -> str:
         .replace("{subject_id}", "{subject}")
         .replace("{run_padded}", "{run}")
     )
-    return str(Path(PATHS["precomputed_ica_root"]) / normalized)
+    return str(_resolve_configured_root(PATHS["precomputed_ica_root"], root_name="precomputed_ica_root") / normalized)
 
 
 def maybe_temp(path: str) -> str:

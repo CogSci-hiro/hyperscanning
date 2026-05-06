@@ -167,6 +167,11 @@ rule speech_envelope:
             "audio",
             f"{_partner_subject(wildcards.subject)}_task-{wildcards.task}_run-{wildcards.run}.wav",
         ),
+        self_ipu=annotation_path(config["annotations"]["ipu"], "{subject}_run-{run}_ipu.csv"),
+        other_ipu=lambda wildcards: annotation_path(
+            config["annotations"]["ipu"],
+            f"{_partner_subject(wildcards.subject)}_run-{wildcards.run}_ipu.csv",
+        ),
         raw=out_path("eeg", "filtered", "{subject}_task-{task}_run-{run}_raw_filt.fif")
     output:
         self_values=out_path("features", "continuous", "envelope", "{subject}_task-{task}_run-{run}_desc-self_envelope_feature.npy"),
@@ -184,6 +189,7 @@ rule speech_envelope:
         {HYPER_MODULE_CMD} acoustic-envelope \
             --config {params.config_path} \
             --audio {input.self_audio} \
+            --ipu {input.self_ipu} \
             --raw {input.raw} \
             --feature-name self_speech_envelope \
             --source-subject {wildcards.subject} \
@@ -193,6 +199,7 @@ rule speech_envelope:
         {HYPER_MODULE_CMD} acoustic-envelope \
             --config {params.config_path} \
             --audio {input.other_audio} \
+            --ipu {input.other_ipu} \
             --raw {input.raw} \
             --feature-name other_speech_envelope \
             --source-subject {params.other_subject} \
@@ -706,8 +713,6 @@ def _trf_qc_score_table_inputs(_wildcards):
                     task,
                     run_str,
                 ):
-                    if root_fn is lm_feature_path and not Path(predictor_path).exists():
-                        continue
                     inputs.append(predictor_path)
     return inputs
 

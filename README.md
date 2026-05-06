@@ -1,4 +1,4 @@
-# EEG Hyperscanning Preprocessing
+# DUET (*D*yadic *U*nderstanding, *E*EG and *T*urn-taking)
 
 ## TODO
 - current branch most likely fine. Ensure its integrity ("hyperscanning-testing") by running turn-taking pipeline to be 100% sure
@@ -154,9 +154,3 @@ Build:
 python -m pip install -r docs/requirements.txt
 sphinx-build -b html docs docs/_build/html
 ```
-
-## Notes for Reviewers
-
-- Rule dependencies are explicit in the Snakemake DAG and shown above.
-- All intermediate files are retained under the derived root to allow auditing and reanalysis.
-- TODO items in the diagram indicate stages that are planned but not yet defined in this repository.

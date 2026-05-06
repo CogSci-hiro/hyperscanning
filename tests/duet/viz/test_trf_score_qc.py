@@ -301,6 +301,46 @@ def test_plot_feature_quality_filters_to_mapped_features(monkeypatch) -> None:
     assert captured["stars"][1] == ["other_speech_envelope"]
 
 
+@pytest.mark.parametrize(
+    ("table", "labels", "expected_reason"),
+    [
+        (pd.DataFrame(columns=["target", "delta"]), {}, "No feature QC rows available."),
+        (
+            pd.DataFrame([{"target": "self_speech_envelope", "delta": 0.2}]),
+            {"other_speech_envelope": "envelope"},
+            "No feature QC rows matched the configured plotted features.",
+        ),
+    ],
+)
+def test_plot_feature_quality_renders_placeholder_when_no_rows(monkeypatch, table, labels, expected_reason: str) -> None:
+    """Feature panel should show a placeholder state instead of raising on empty inputs."""
+    monkeypatch.setattr(mod.sns, "despine", lambda **kwargs: None)
+
+    captured = {}
+
+    class DummyAxis:
+        transAxes = "axes-transform"
+
+        def set_title(self, value): captured["title"] = value
+        def set_xlabel(self, value): captured["xlabel"] = value
+        def set_ylabel(self, value): captured["ylabel"] = value
+        def set_xticks(self, positions, labels): captured["xticks"] = (positions, labels)
+        def grid(self, value): captured["grid"] = value
+        def set_axisbelow(self, value): captured["axisbelow"] = value
+        def text(self, x, y, text, ha, va, transform=None):
+            captured["text"] = (x, y, text, ha, va, transform)
+
+    mod._plot_feature_quality(DummyAxis(), table, plotted_feature_labels=labels)
+
+    assert captured["title"] == "Feature quality check"
+    assert captured["xlabel"] == ""
+    assert captured["ylabel"] == r"Delta R ($\Delta R$)"
+    assert captured["xticks"] == ([], [])
+    assert captured["grid"] is False
+    assert captured["axisbelow"] is True
+    assert captured["text"] == (0.5, 0.5, expected_reason, "center", "center", "axes-transform")
+
+
 def test_plot_eeg_quality_adds_stars_only_for_delta(monkeypatch) -> None:
     """EEG panel should request significance stars only for the delta group."""
     table = pd.DataFrame(
