@@ -996,3 +996,51 @@ def test_run_trf_qc_score_tables_writes_eeg_and_feature_delta_tables(
     assert eeg_table.loc[0, "delta"] != 0.0
     assert feature_table.loc[0, "target"] == "other_speech_envelope"
     assert feature_table.loc[0, "delta"] > 0.0
+
+
+def test_run_trf_qc_score_tables_allows_empty_feature_table_when_optional_inputs_are_missing(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Feature QC should write an empty table when optional predictors are unavailable."""
+    cfg = _make_project_config(
+        tmp_path,
+        trf_overrides={
+            "predictors": ["self_speech_envelope", "other_surprisal"],
+            "qc_predictors": ["self_speech_envelope"],
+            "ablation_targets": ["other_surprisal"],
+        },
+    )
+    raw_root = Path(cfg.raw["paths"]["raw_root"])
+    (raw_root / "sub-001" / "eeg").mkdir(parents=True, exist_ok=True)
+    paths = ProjectPaths.from_config(cfg)
+    _write_test_run(paths, subject_id="sub-001", run_id="1", sample_count=40)
+
+    def fake_fit_subject_trf_score(*, run_inputs, config, subject_id, task, progress_label=None):  # noqa: ANN001
+        del config, progress_label
+        score = float(len(run_inputs[0].predictor_names)) + float(np.mean(run_inputs[0].predictor_values[:2, 0])) / 100.0
+        return mod.TrfQcScoreSummary(
+            subject_id=subject_id,
+            score=score,
+            score_name="pearsonr",
+            predictor_names=run_inputs[0].predictor_names,
+        )
+
+    monkeypatch.setattr(mod, "fit_subject_trf_score", fake_fit_subject_trf_score)
+
+    eeg_output_path = tmp_path / "derived" / "trf_qc" / "task-conversation" / "eeg_scores.tsv"
+    feature_output_path = tmp_path / "derived" / "trf_qc" / "task-conversation" / "feature_scores.tsv"
+    summary = run_trf_qc_score_tables(
+        cfg=cfg,
+        task="conversation",
+        eeg_output_path=eeg_output_path,
+        feature_output_path=feature_output_path,
+    )
+
+    eeg_table = pd.read_csv(eeg_output_path, sep="\t")
+    feature_table = pd.read_csv(feature_output_path, sep="\t")
+
+    assert summary["eeg_row_count"] == 1
+    assert summary["feature_row_count"] == 0
+    assert not eeg_table.empty
+    assert feature_table.empty

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -52,3 +53,44 @@ def test_cumulative_path_ignores_silence_and_accumulates_overlap_for_both_axes()
 
     assert np.allclose(x_values, np.array([0.0, 1.0, 3.0, 3.0]))
     assert np.allclose(y_values, np.array([0.0, 0.0, 2.0, 2.5]))
+
+
+def test_tune_ipu_summary_layout_scales_text_and_removes_left_xticks() -> None:
+    """Layout tuning should rescale text and remove right-panel x ticks."""
+    fig, axes = plt.subplots(1, 3)
+    for index, axis in enumerate(axes):
+        axis.set_title(f"Panel {index}")
+        axis.set_xlabel("X label")
+        axis.set_ylabel("Y label")
+        axis.plot([0.0, 1.0], [0.0, 1.0], label="Example")
+        axis.legend(title="Legend")
+
+    fig.canvas.draw()
+    initial_title_size = axes[0].title.get_fontsize()
+    initial_xlabel_size = axes[0].xaxis.label.get_fontsize()
+    initial_legend_size = axes[0].get_legend().get_texts()[0].get_fontsize()
+
+    mod._tune_ipu_summary_layout(fig, axes)
+
+    assert axes[0].title.get_fontsize() == initial_title_size * mod.FONT_SCALE * mod.TITLE_SCALE
+    assert axes[0].xaxis.label.get_fontsize() == initial_xlabel_size * mod.FONT_SCALE * mod.AXIS_LABEL_SCALE
+    assert axes[0].get_legend().get_texts()[0].get_fontsize() == initial_legend_size * mod.FONT_SCALE * mod.LEGEND_SCALE
+    assert axes[0].get_xticklabels()[0].get_fontsize() == axes[1].get_yticklabels()[0].get_fontsize()
+    assert axes[0].get_yticklabels()[0].get_fontsize() == axes[1].get_yticklabels()[0].get_fontsize()
+    assert axes[1].get_xticklabels()[0].get_fontsize() == axes[1].get_yticklabels()[0].get_fontsize()
+    assert len(axes[2].get_xticks()) == 0
+    assert len(axes[0].get_xticks()) > 0
+
+    plt.close(fig)
+
+
+def test_add_panel_labels_places_expected_ipu_annotations() -> None:
+    """IPU summary panels should receive the expected corner labels."""
+    fig, axes = plt.subplots(1, 3)
+
+    mod._add_panel_labels(axes)
+
+    assert [axis.texts[0].get_text() for axis in axes] == ["(A)", "(B)", "(C)"]
+    assert [axis.texts[0].get_position() for axis in axes] == list(mod.PANEL_LABEL_POSITIONS)
+
+    plt.close(fig)

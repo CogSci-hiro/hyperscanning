@@ -61,7 +61,14 @@ LEGEND_FONT_SCALE = 0.5
 FIRST_SECOND_GAP_REDUCTION = 0.095
 SECOND_THIRD_GAP_REDUCTION = 0.075
 THIRD_PANEL_WIDTH_RATIO = 1.3
-FIGURE_WIDTH_PADDING = 0.35
+FIGURE_WIDTH_PADDING = 0.33
+PANEL_LABELS: tuple[str, ...] = ("(D)", "(E)", "(F)")
+PANEL_LABEL_FONT_SIZE = 25
+PANEL_LABEL_POSITIONS: tuple[tuple[float, float], ...] = (
+    (0.05, 1.06),
+    (0.03, 1.06),
+    (0.02, 1.06),
+)
 
 
 def _write_placeholder_figure(
@@ -496,11 +503,33 @@ def _tune_speech_artefact_fonts(axes: Sequence[plt.Axes]) -> None:
 
     third_axis = axes[2]
     scale_tick_labels(third_axis, x_scale=THIRD_PANEL_XTICK_SCALE, y_scale=1.0)
+    if hasattr(third_axis, "set_xticks"):
+        third_axis.set_xticks([])
+    if hasattr(third_axis, "tick_params"):
+        third_axis.tick_params(axis="x", bottom=False, labelbottom=False)
 
     legend = third_axis.get_legend() if hasattr(third_axis, "get_legend") else None
     if legend is not None:
         for text in legend.get_texts():
             text.set_fontsize(text.get_fontsize() * LEGEND_FONT_SCALE)
+
+
+def _add_panel_labels(axes: Sequence[plt.Axes]) -> None:
+    """Add fixed panel labels to the top-left corner of each subplot."""
+    for axis, label, (x_pos, y_pos) in zip(axes, PANEL_LABELS, PANEL_LABEL_POSITIONS, strict=False):
+        if not hasattr(axis, "text") or not hasattr(axis, "transAxes"):
+            continue
+        axis.text(
+            x_pos,
+            y_pos,
+            label,
+            transform=axis.transAxes,
+            ha="left",
+            va="center",
+            fontweight="bold",
+            fontsize=PANEL_LABEL_FONT_SIZE,
+            clip_on=False,
+        )
 
 
 def _remove_second_panel_y_axis(axis: plt.Axes) -> None:
@@ -608,6 +637,7 @@ def build_speech_artefact_summary_figure(
     _enforce_square_psd_panels(axes)
     _scale_figure_fonts(figure, scale=FONT_SCALE)
     _tune_speech_artefact_fonts(axes)
+    _add_panel_labels(axes)
     figure.tight_layout()
     _reduce_first_second_gap(axes, delta=FIRST_SECOND_GAP_REDUCTION)
     _reduce_second_third_gap(axes, delta=SECOND_THIRD_GAP_REDUCTION)

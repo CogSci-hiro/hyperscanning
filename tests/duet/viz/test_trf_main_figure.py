@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from duet.config import ProjectConfig
 from duet.viz import trf_main_figure as mod
@@ -122,6 +123,81 @@ def test_build_trf_main_figure_renders_configured_feature_grid(
     assert all(call["compact_vertical"] is True for call in calls)
     np.testing.assert_allclose(calls[0]["joint_times"], np.array([0.05, 0.15, 0.25], dtype=float))
     np.testing.assert_allclose(calls[1]["joint_times"], np.array([0.1, 0.2, 0.3], dtype=float))
+
+
+def test_trf_main_figure_uses_tighter_title_and_vertical_spacing(monkeypatch, tmp_path: Path) -> None:
+    """The composed TRF figure should place titles closer and reduce row spacing."""
+    cfg = ProjectConfig(
+        raw={
+            "paths": {
+                "raw_root": str(tmp_path / "raw"),
+                "out_dir": str(tmp_path / "derived"),
+                "reports_root": str(tmp_path / "reports"),
+                "results_root": str(tmp_path / "results"),
+            },
+            "viz": {
+                "trf_main_figure": {
+                    "task": "conversation",
+                    "dpi": 120,
+                    "panel_dpi": 100,
+                    "figsize": {"width": 8.0, "height": 4.0},
+                    "layout": {"rows": 1, "cols": 1},
+                    "joint_times_seconds": [0.1, 0.2, 0.3],
+                    "features": [{"predictor": "feat_a", "label": "Feature A"}],
+                }
+            },
+        }
+    )
+
+    fake_group_data = mod.GroupAverageKernelData(
+        predictor_names=("feat_a",),
+        lag_seconds=np.array([0.0, 0.1, 0.2], dtype=float),
+        channel_names=("Cz", "Pz"),
+        group_mean_kernel_lag_feature_channel=np.array([[[1.0, 0.5]], [[2.0, 1.0]], [[0.5, 0.2]]], dtype=float),
+        subject_ids=("sub-001",),
+    )
+    monkeypatch.setattr(mod, "_load_group_average_kernel_data", lambda cfg, task: fake_group_data)
+    monkeypatch.setattr(
+        mod,
+        "plot_joint_map",
+        lambda *args, **kwargs: [tmp_path / "panel.png"],
+    )
+    monkeypatch.setattr(mod.plt, "imread", lambda path: np.ones((4, 4, 3), dtype=float))
+    monkeypatch.setattr(mod, "apply_report_style", lambda: None)
+    monkeypatch.setattr(mod, "scale_figure_text", lambda figure, scale: None)
+
+    captured: dict[str, object] = {}
+
+    class DummyAxis:
+        def __init__(self) -> None:
+            self.title_calls: list[tuple[str, float, float]] = []
+
+        def imshow(self, image) -> None:
+            captured["imshow"] = np.asarray(image).shape
+
+        def set_axis_off(self) -> None:
+            captured["axis_off"] = True
+
+        def set_title(self, title, y=None, pad=None) -> None:
+            self.title_calls.append((title, y, pad))
+
+    class DummyFigure:
+        def subplots_adjust(self, **kwargs) -> None:
+            captured["subplots_adjust"] = kwargs
+
+        def savefig(self, path, dpi, bbox_inches) -> None:
+            captured["savefig"] = (Path(path), dpi, bbox_inches)
+
+    dummy_axis = DummyAxis()
+    monkeypatch.setattr(mod.plt, "subplots", lambda *args, **kwargs: (DummyFigure(), np.array([[dummy_axis]], dtype=object)))
+    monkeypatch.setattr(mod.plt, "close", lambda fig: captured.setdefault("closed", True))
+
+    output_path = tmp_path / "reports" / "figures" / "trf_main.png"
+    written = mod.build_trf_main_figure(cfg=cfg, output_path=output_path)
+
+    assert written == output_path
+    assert dummy_axis.title_calls == [("Feature A", pytest.approx(mod.PANEL_TITLE_Y), pytest.approx(mod.PANEL_TITLE_PAD))]
+    assert captured["subplots_adjust"]["hspace"] == pytest.approx(mod.SUBPLOT_HSPACE)
 
 
 def test_build_trf_main_figure_writes_placeholder_when_no_kernels(monkeypatch, tmp_path: Path) -> None:

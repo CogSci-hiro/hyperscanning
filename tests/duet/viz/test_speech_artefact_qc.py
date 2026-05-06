@@ -500,7 +500,7 @@ def test_scale_figure_fonts_multiplies_text_sizes() -> None:
 
 
 def test_tune_speech_artefact_fonts_applies_panel_specific_scales() -> None:
-    """Speech artefact figure should reduce y labels, legend text, and third-panel x ticks."""
+    """Speech artefact figure should tune y labels, legend text, and hide third-panel x ticks."""
 
     class DummyText:
         def __init__(self, fontsize: float) -> None:
@@ -524,12 +524,20 @@ def test_tune_speech_artefact_fonts_applies_panel_specific_scales() -> None:
             self.yaxis = type("YAxis", (), {"label": DummyText(30.0)})()
             self._ticks = [DummyText(size) for size in (tick_sizes or [])]
             self._legend = DummyLegend() if with_legend else None
+            self.xticks: list[float] | None = [0.0, 1.0]
+            self.tick_params_calls: list[dict[str, object]] = []
 
         def get_xticklabels(self):
             return self._ticks
 
         def get_legend(self):
             return self._legend
+
+        def set_xticks(self, ticks):
+            self.xticks = list(ticks)
+
+        def tick_params(self, **kwargs):
+            self.tick_params_calls.append(kwargs)
 
     axes = [
         DummyAxis(),
@@ -542,5 +550,20 @@ def test_tune_speech_artefact_fonts_applies_panel_specific_scales() -> None:
     assert axes[0].yaxis.label.get_fontsize() == pytest.approx(31.59)
     assert axes[1].yaxis.label.get_fontsize() == pytest.approx(31.59)
     assert axes[2].yaxis.label.get_fontsize() == pytest.approx(31.59)
-    assert [tick.get_fontsize() for tick in axes[2].get_xticklabels()] == [9.0, 11.0]
+    assert [tick.get_fontsize() for tick in axes[2].get_xticklabels()] == pytest.approx([12.6, 15.4])
+    assert axes[2].xticks == []
+    assert axes[2].tick_params_calls == [{"axis": "x", "bottom": False, "labelbottom": False}]
     assert [text.get_fontsize() for text in axes[2].get_legend().get_texts()] == [10.0, 12.0]
+
+
+def test_add_panel_labels_places_expected_speech_artefact_annotations() -> None:
+    """Speech artefact panels should receive the expected corner labels."""
+    figure, axes = mod.plt.subplots(1, 3)
+
+    mod._add_panel_labels(axes)
+
+    assert [axis.texts[0].get_text() for axis in axes] == ["(D)", "(E)", "(F)"]
+    assert [axis.texts[0].get_position() for axis in axes] == list(mod.PANEL_LABEL_POSITIONS)
+    assert all(axis.texts[0].get_fontsize() == mod.PANEL_LABEL_FONT_SIZE for axis in axes)
+
+    mod.plt.close(figure)

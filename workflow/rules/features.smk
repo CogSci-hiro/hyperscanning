@@ -713,6 +713,8 @@ def _trf_qc_score_table_inputs(_wildcards):
                     task,
                     run_str,
                 ):
+                    if root_fn is lm_feature_path and not Path(predictor_path).exists():
+                        continue
                     inputs.append(predictor_path)
     return inputs
 

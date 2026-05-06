@@ -74,6 +74,23 @@ def _trf_qc_score_table_targets():
         out_path("trf_qc", f"task-{task}", "feature_scores.tsv"),
     ]
 
+
+def _main_figure_targets():
+    targets = [
+        reports_path("figures", str(VIZ.get("speech_artefact", {}).get("filename", "speech_artefact_summary.png"))),
+        reports_path("figures", str(VIZ.get("trf_main_figure", {}).get("filename", "trf_main_figure_summary.png"))),
+        reports_path("figures", str(VIZ.get("ipu_turn_taking", {}).get("filename", "ipu_turn_taking_summary.png"))),
+    ]
+
+    trf_score_inputs = _trf_qc_score_table_inputs(None)
+    if trf_score_inputs:
+        targets.insert(
+            1,
+            reports_path("figures", str(VIZ.get("trf_score", {}).get("filename", "trf_score_summary.png"))),
+        )
+
+    return targets
+
 rule preprocessed_all:
     input:
         filter_non_existent(
@@ -295,10 +312,7 @@ rule epoch_noica_all:
 
 rule main_figures_all:
     input:
-        reports_path("figures", str(VIZ.get("speech_artefact", {}).get("filename", "speech_artefact_summary.png"))),
-        reports_path("figures", str(VIZ.get("trf_score", {}).get("filename", "trf_score_summary.png"))),
-        reports_path("figures", str(VIZ.get("trf_main_figure", {}).get("filename", "trf_main_figure_summary.png"))),
-        reports_path("figures", str(VIZ.get("ipu_turn_taking", {}).get("filename", "ipu_turn_taking_summary.png")))
+        _main_figure_targets()
 
 
 if bool(TRF.get("enabled", False)) and bool(PATHS.get("out_dir", PATHS.get("derived_root"))):

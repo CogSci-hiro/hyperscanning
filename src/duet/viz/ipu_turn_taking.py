@@ -39,6 +39,16 @@ FONT_SCALE = REPORT_FONT_SCALE
 LEGEND_SIZE = 18
 THIRD_PANEL_WIDTH_RATIO = 1.5
 FIRST_PANEL_LEGEND_SCALE = 1.5
+AXIS_LABEL_SCALE = 1.8
+TITLE_SCALE = 1.8
+LEGEND_SCALE = 0.5
+PANEL_LABELS: tuple[str, ...] = ("(A)", "(B)", "(C)")
+PANEL_LABEL_FONT_SIZE = 36
+PANEL_LABEL_POSITIONS: tuple[tuple[float, float], ...] = (
+    (-0.18, 1.06),
+    (-0.3, 1.06),
+    (0.0, 1.06),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -324,7 +334,7 @@ def _plot_ipu_duration_histogram(
         color="#1f1f1f",
         alpha=0.8,
     )
-    axis.set_title("IPU and silence duration distribution")
+    axis.set_title("IPU and silence\nduration distribution")
     axis.set_xlabel("Duration (s)")
     axis.set_ylabel("Count")
     axis.set_xlim(0.0, 10.0)
@@ -358,8 +368,8 @@ def _plot_cumulative_speaking_time(axis: plt.Axes, cumulative_table: pd.DataFram
     )
     axis.plot([0.0, max_value], [0.0, max_value], linestyle="--", linewidth=1.6, color="#555555", alpha=0.7)
     axis.set_title("Cumulative speaking time")
-    axis.set_xlabel("Speaker A cumulative time (s)")
-    axis.set_ylabel("Speaker B cumulative time (s)")
+    axis.set_xlabel("Speaker A time (s)")
+    axis.set_ylabel("Speaker B time (s)")
     axis.set_aspect("equal", adjustable="box")
     axis.grid(True)
 
@@ -416,8 +426,46 @@ def _plot_breakdown(axis: plt.Axes, breakdown_table: pd.DataFrame) -> None:
 def _tune_ipu_summary_layout(fig: plt.Figure, axes: np.ndarray) -> None:
     """Apply final sizing and figure-level legend layout."""
     scale_figure_text(fig, scale=FONT_SCALE)
-    for axis in list(np.ravel(axes)):
+    flat_axes = list(np.ravel(axes))
+    for axis in flat_axes:
         scale_tick_labels(axis, x_scale=REPORT_X_TICK_LABEL_SCALE, y_scale=1.0)
+        axis.xaxis.label.set_fontsize(float(axis.xaxis.label.get_fontsize()) * AXIS_LABEL_SCALE)
+        axis.yaxis.label.set_fontsize(float(axis.yaxis.label.get_fontsize()) * AXIS_LABEL_SCALE)
+        axis.title.set_fontsize(float(axis.title.get_fontsize()) * TITLE_SCALE)
+        legend = axis.get_legend()
+        if legend is not None:
+            for text in legend.get_texts():
+                text.set_fontsize(float(text.get_fontsize()) * LEGEND_SCALE)
+            legend_title = legend.get_title()
+            if legend_title is not None:
+                legend_title.set_fontsize(float(legend_title.get_fontsize()) * LEGEND_SCALE)
+    flat_axes[1].tick_params(axis="x", labelsize=flat_axes[1].get_yticklabels()[0].get_fontsize())
+    flat_axes[2].set_xticks([])
+    flat_axes[2].tick_params(axis="x", bottom=False, labelbottom=False)
+    if flat_axes[0].get_xticklabels():
+        left_x_size = flat_axes[1].get_yticklabels()[0].get_fontsize()
+        flat_axes[0].tick_params(axis="x", labelsize=left_x_size)
+    if flat_axes[0].get_yticklabels():
+        left_y_size = flat_axes[1].get_yticklabels()[0].get_fontsize()
+        flat_axes[0].tick_params(axis="y", labelsize=left_y_size)
+
+
+def _add_panel_labels(axes: np.ndarray) -> None:
+    """Add fixed panel labels to the top-left corner of each subplot."""
+    for axis, label, (x_pos, y_pos) in zip(np.ravel(axes), PANEL_LABELS, PANEL_LABEL_POSITIONS, strict=False):
+        if not hasattr(axis, "text") or not hasattr(axis, "transAxes"):
+            continue
+        axis.text(
+            x_pos,
+            y_pos,
+            label,
+            transform=axis.transAxes,
+            ha="left",
+            va="center",
+            fontweight="bold",
+            fontsize=PANEL_LABEL_FONT_SIZE,
+            clip_on=False,
+        )
 
 
 def build_ipu_turn_taking_figure(*, cfg: ProjectConfig, output_path: Path) -> Path:
@@ -437,6 +485,7 @@ def build_ipu_turn_taking_figure(*, cfg: ProjectConfig, output_path: Path) -> Pa
     _plot_cumulative_speaking_time(axes[1], cumulative_table)
     _plot_breakdown(axes[2], breakdown_table)
     _tune_ipu_summary_layout(fig, axes)
+    _add_panel_labels(axes)
     fig.set_constrained_layout_pads(w_pad=0.08, h_pad=0.12, wspace=0.08, hspace=0.02)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

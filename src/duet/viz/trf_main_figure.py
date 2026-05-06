@@ -18,6 +18,10 @@ from duet.viz.style import REPORT_FONT_SCALE, apply_report_style, scale_figure_t
 
 matplotlib.use("Agg")
 
+PANEL_TITLE_Y = 1.08
+PANEL_TITLE_PAD = -4
+SUBPLOT_HSPACE = -0.24
+
 
 @dataclass(frozen=True, slots=True)
 class GroupAverageKernelData:
@@ -316,11 +320,11 @@ def build_trf_main_figure(
         for axis, image_path, feature in zip(flat_axes, image_paths, features, strict=True):
             axis.imshow(plt.imread(image_path))
             axis.set_axis_off()
-            axis.set_title(feature.label, y=1.14, pad=0)
+            axis.set_title(feature.label, y=PANEL_TITLE_Y, pad=PANEL_TITLE_PAD)
         scale_figure_text(figure, scale=REPORT_FONT_SCALE)
         for axis in flat_axes[len(image_paths):]:
             axis.set_axis_off()
-        figure.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0, wspace=0.0, hspace=-0.16)
+        figure.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0, wspace=0.0, hspace=SUBPLOT_HSPACE)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         figure.savefig(output_path, dpi=_figure_dpi(cfg), bbox_inches="tight")
