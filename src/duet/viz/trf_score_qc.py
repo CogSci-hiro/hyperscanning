@@ -30,6 +30,12 @@ JITTER_SIZE = 3.1 * 1.5
 JITTER_LINEWIDTH = 0.45 * 1.5
 STAR_Y_OFFSET_FRACTION = 0.04
 STAR_AXES_Y = 0.9
+PANEL_LABELS: tuple[str, ...] = ("(A)", "(B)")
+PANEL_LABEL_POSITIONS: tuple[tuple[float, float], ...] = (
+    (-0.3, 1.1),
+    (-0.09, 1.1),
+)
+PANEL_LABEL_FONT_SIZE = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,6 +284,23 @@ def _plot_feature_quality(axis: plt.Axes, feature_table: pd.DataFrame, *, plotte
     sns.despine(ax=axis, offset=6)
 
 
+def _add_panel_labels(axes) -> None:
+    """Add fixed panel labels to the top-left corner of each subplot."""
+    for axis, label, (x_pos, y_pos) in zip(axes, PANEL_LABELS, PANEL_LABEL_POSITIONS, strict=False):
+        if not hasattr(axis, "text") or not hasattr(axis, "transAxes"):
+            continue
+        axis.text(
+            x_pos,
+            y_pos,
+            label,
+            transform=axis.transAxes,
+            ha="left",
+            va="top",
+            fontweight="bold",
+            fontsize=PANEL_LABEL_FONT_SIZE,
+        )
+
+
 def build_trf_score_qc_figure(
     *,
     cfg: ProjectConfig,
@@ -299,6 +322,7 @@ def build_trf_score_qc_figure(
     scale_figure_text(figure, scale=FONT_SCALE)
     for axis in axes:
         scale_tick_labels(axis, x_scale=x_tick_label_scale)
+    _add_panel_labels(axes)
     figure.tight_layout()
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -88,9 +88,14 @@ def test_build_trf_score_qc_figure_writes_expected_path(monkeypatch, tmp_path: P
     class DummyAxis:
         def __init__(self) -> None:
             self._ticks = [DummyText(12.0), DummyText(16.0)]
+            self.text_calls = []
+            self.transAxes = object()
 
         def get_xticklabels(self):
             return self._ticks
+
+        def text(self, *args, **kwargs):
+            self.text_calls.append((args, kwargs))
 
     figure = DummyFigure()
     axes = [DummyAxis(), DummyAxis()]
@@ -119,6 +124,20 @@ def test_build_trf_score_qc_figure_writes_expected_path(monkeypatch, tmp_path: P
     assert [text.get_fontsize() for text in figure.texts] == [20.0, 28.0]
     assert np.allclose([tick.get_fontsize() for tick in axes[0].get_xticklabels()], [8.4, 11.2])
     assert np.allclose([tick.get_fontsize() for tick in axes[1].get_xticklabels()], [8.4, 11.2])
+    assert axes[0].text_calls[0][0][2] == "(A)"
+    assert axes[1].text_calls[0][0][2] == "(B)"
+
+
+def test_add_panel_labels_places_expected_trf_score_annotations() -> None:
+    """TRF score panels should receive the expected corner labels."""
+    figure, axes = mod.plt.subplots(1, 2)
+
+    mod._add_panel_labels(axes)
+
+    assert [axis.texts[0].get_text() for axis in axes] == ["(A)", "(B)"]
+    assert [axis.texts[0].get_position() for axis in axes] == list(mod.PANEL_LABEL_POSITIONS)
+
+    mod.plt.close(figure)
 
 
 def test_pvalue_to_stars_uses_conventional_thresholds() -> None:

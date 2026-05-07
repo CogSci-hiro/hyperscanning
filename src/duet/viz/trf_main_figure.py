@@ -21,6 +21,9 @@ matplotlib.use("Agg")
 PANEL_TITLE_Y = 1.08
 PANEL_TITLE_PAD = -4
 SUBPLOT_HSPACE = -0.24
+GLOBAL_PANEL_LABEL = "(C)"
+GLOBAL_PANEL_LABEL_POSITION = (0.01, 0.96)
+GLOBAL_PANEL_LABEL_FONT_SIZE = 35
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,6 +243,21 @@ def _write_placeholder_figure(
     return output_path
 
 
+def _add_global_panel_label(figure: plt.Figure) -> None:
+    """Add the global panel label to the top-left of the composed figure."""
+    if not hasattr(figure, "text"):
+        return
+    figure.text(
+        GLOBAL_PANEL_LABEL_POSITION[0],
+        GLOBAL_PANEL_LABEL_POSITION[1],
+        GLOBAL_PANEL_LABEL,
+        ha="left",
+        va="top",
+        fontweight="bold",
+        fontsize=GLOBAL_PANEL_LABEL_FONT_SIZE,
+    )
+
+
 def build_trf_main_figure(
     *,
     cfg: ProjectConfig,
@@ -324,6 +342,7 @@ def build_trf_main_figure(
         scale_figure_text(figure, scale=REPORT_FONT_SCALE)
         for axis in flat_axes[len(image_paths):]:
             axis.set_axis_off()
+        _add_global_panel_label(figure)
         figure.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0, wspace=0.0, hspace=SUBPLOT_HSPACE)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)

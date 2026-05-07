@@ -182,6 +182,9 @@ def test_trf_main_figure_uses_tighter_title_and_vertical_spacing(monkeypatch, tm
             self.title_calls.append((title, y, pad))
 
     class DummyFigure:
+        def text(self, *args, **kwargs) -> None:
+            captured["figure_text"] = (args, kwargs)
+
         def subplots_adjust(self, **kwargs) -> None:
             captured["subplots_adjust"] = kwargs
 
@@ -197,6 +200,7 @@ def test_trf_main_figure_uses_tighter_title_and_vertical_spacing(monkeypatch, tm
 
     assert written == output_path
     assert dummy_axis.title_calls == [("Feature A", pytest.approx(mod.PANEL_TITLE_Y), pytest.approx(mod.PANEL_TITLE_PAD))]
+    assert captured["figure_text"][0][2] == "(C)"
     assert captured["subplots_adjust"]["hspace"] == pytest.approx(mod.SUBPLOT_HSPACE)
 
 
