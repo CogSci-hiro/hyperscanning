@@ -553,7 +553,7 @@ def test_tune_speech_artefact_fonts_applies_panel_specific_scales() -> None:
     assert [tick.get_fontsize() for tick in axes[2].get_xticklabels()] == pytest.approx([12.6, 15.4])
     assert axes[2].xticks == []
     assert axes[2].tick_params_calls == [{"axis": "x", "bottom": False, "labelbottom": False}]
-    assert [text.get_fontsize() for text in axes[2].get_legend().get_texts()] == [10.0, 12.0]
+    assert [text.get_fontsize() for text in axes[2].get_legend().get_texts()] == [20.0, 24.0]
 
 
 def test_add_panel_labels_places_expected_speech_artefact_annotations() -> None:
